@@ -63,7 +63,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
 
       <div className="max-w-4xl w-full px-6 py-12 md:py-20 fade-in space-y-12">
         
-        {/* API Key / Setup Info */}
+        {/* API Key / Setup Info - Required for gemini-3-pro-image-preview */}
         {!hasApiKey && (
           <div className="p-8 bg-purple-500/10 border border-purple-500/20 rounded-[2.5rem] text-left space-y-4 max-w-2xl mx-auto backdrop-blur-xl">
             <h3 className="text-white font-black uppercase tracking-widest text-xs flex items-center gap-2">
@@ -71,21 +71,35 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               Reality Weaver Connection Required
             </h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              To weave these high-fidelity chronicles and illustrate your journey, connect to the Google Gemini API. Ensure your project has billing enabled for best performance.
+              To weave these high-fidelity chronicles and illustrate your journey with <strong>Pro-grade imagery</strong>, please connect a Google Account. You must select a API key from a project with <strong>active billing</strong> to avoid quota limits.
             </p>
-            <button 
-              onClick={onConnectKey}
-              className="flex items-center gap-3 px-6 py-3 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-purple-100 transition-all active:scale-95"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.32-2.12 4.52-1.2 1.2-3.04 2.16-5.72 2.16-4.6 0-8.36-3.72-8.36-8.32s3.76-8.32 8.36-8.32c2.48 0 4.28.96 5.64 2.24l2.32-2.32C18.44 2.08 15.68 1 12.48 1 6.12 1 1 6.12 1 12.48S6.12 24 12.48 24c3.44 0 6.08-1.12 8.12-3.24 2.08-2.08 2.72-5.04 2.72-7.36 0-.72-.04-1.4-.16-2.08H12.48z"/></svg>
-              Connect Google Account
-            </button>
-            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block text-[10px] text-gray-600 hover:text-purple-400 underline uppercase tracking-tighter">Billing Documentation</a>
+            <div className="flex flex-wrap gap-4 pt-2">
+              <button 
+                onClick={onConnectKey}
+                className="flex items-center gap-3 px-6 py-3 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-purple-100 transition-all active:scale-95 shadow-xl"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.32-2.12 4.52-1.2 1.2-3.04 2.16-5.72 2.16-4.6 0-8.36-3.72-8.36-8.32s3.76-8.32 8.36-8.32c2.48 0 4.28.96 5.64 2.24l2.32-2.32C18.44 2.08 15.68 1 12.48 1 6.12 1 1 6.12 1 12.48S6.12 24 12.48 24c3.44 0 6.08-1.12 8.12-3.24 2.08-2.08 2.72-5.04 2.72-7.36 0-.72-.04-1.4-.16-2.08H12.48z"/></svg>
+                Connect Google Account
+              </button>
+              <a 
+                href="https://ai.google.dev/gemini-api/docs/billing" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-3 border border-white/10 text-gray-400 rounded-full font-bold text-[10px] uppercase tracking-widest hover:text-white transition-all"
+              >
+                Billing Documentation
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              </a>
+            </div>
           </div>
         )}
 
         {error && (
-          <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-3xl text-red-400 text-sm font-medium leading-relaxed max-w-xl mx-auto">
+          <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-3xl text-red-400 text-sm font-medium leading-relaxed max-w-xl mx-auto shadow-2xl">
+            <div className="flex items-center justify-center gap-3 mb-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              <span className="font-black uppercase tracking-widest text-[10px]">Transmission Disrupted</span>
+            </div>
             {error}
           </div>
         )}

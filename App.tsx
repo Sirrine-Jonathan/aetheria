@@ -56,13 +56,18 @@ const App: React.FC = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  // Check for existing API key on mount
   useEffect(() => {
     const checkApiKey = async () => {
       // @ts-ignore
       if (window.aistudio?.hasSelectedApiKey) {
-        // @ts-ignore
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setState(p => ({ ...p, hasApiKey: hasKey }));
+        try {
+          // @ts-ignore
+          const hasKey = await window.aistudio.hasSelectedApiKey();
+          setState(p => ({ ...p, hasApiKey: hasKey }));
+        } catch (e) {
+          console.warn("Key check failed", e);
+        }
       } else if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
         setState(p => ({ ...p, hasApiKey: true }));
       }
@@ -80,6 +85,7 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Persistence
   useEffect(() => {
     if (state.currentScene) {
       try {
@@ -94,9 +100,16 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     // @ts-ignore
     if (window.aistudio?.openSelectKey) {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
-      setState(p => ({ ...p, hasApiKey: true, error: null }));
+      try {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+        // Mandatory: Proceed assuming success after triggering the dialog per guidelines
+        setState(p => ({ ...p, hasApiKey: true, error: null }));
+      } catch (e) {
+        setState(p => ({ ...p, error: "Failed to open account selector." }));
+      }
+    } else {
+      setState(p => ({ ...p, error: "Account selector is only available in supported AI Studio environments." }));
     }
   };
 
@@ -184,8 +197,8 @@ const App: React.FC = () => {
       if (state.autoDictate) speakText(`${scene.title}. ${scene.description}`);
     } catch (err: any) { 
       let errMsg = "Initialization failed.";
-      if (err.message?.includes("Requested entity was not found")) {
-        errMsg = "API Key error. Please reconnect your account.";
+      if (err.message?.includes("Requested entity was not found") || err.message?.includes("Quota exceeded")) {
+        errMsg = "Account/Quota issue. Please connect a billed Google Account for high-quality visuals.";
         setState(p => ({ ...p, hasApiKey: false }));
       }
       setState(p => ({ ...p, isGenerating: false, error: errMsg })); 
@@ -211,7 +224,12 @@ const App: React.FC = () => {
       if (nextScene.statChanges) updateCharacter(nextScene.statChanges);
       if (state.autoDictate) speakText(`${nextScene.title}. ${nextScene.description}`);
     } catch (err: any) { 
-      setState(p => ({ ...p, isGenerating: false, error: "The path is blocked. (API error)" })); 
+      let errMsg = "The path is blocked.";
+      if (err.message?.includes("Requested entity was not found") || err.message?.includes("Quota exceeded")) {
+        errMsg = "Account/Quota issue. Please reconnect a billed Google Account.";
+        setState(p => ({ ...p, hasApiKey: false }));
+      }
+      setState(p => ({ ...p, isGenerating: false, error: errMsg })); 
     }
   };
 
