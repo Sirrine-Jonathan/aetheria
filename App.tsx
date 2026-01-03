@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GameState, Scene, Choice, CharacterState } from './types';
 import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio } from './services/geminiService';
@@ -31,8 +30,6 @@ const App: React.FC = () => {
     startTheme: string;
     selectedVoice: string;
     speechSpeed: number;
-    hasApiKey: boolean;
-    isAIStudio: boolean;
   }>({
     currentScene: null,
     history: [],
@@ -50,8 +47,6 @@ const App: React.FC = () => {
     startTheme: '',
     selectedVoice: 'Charon',
     speechSpeed: 1.0,
-    hasApiKey: false,
-    isAIStudio: false
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -59,42 +54,6 @@ const App: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
-    const checkKeyStatus = async () => {
-      let hasKey = false;
-      // @ts-ignore
-      const isAIStudio = !!(window.aistudio);
-
-      if (isAIStudio) {
-        try {
-          // @ts-ignore
-          hasKey = await window.aistudio.hasSelectedApiKey();
-        } catch (e) {
-          console.warn("Key check failed", e);
-        }
-      }
-
-      // Check environment variable (Standard deployments / Netlify)
-      if (!hasKey) {
-        try {
-          // Robust check for process.env.API_KEY
-          const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
-          
-          // Also check for common injection points if process is not globally available
-          // @ts-ignore
-          const winKey = window.__API_KEY__ || window.ENV?.API_KEY;
-          const finalKey = apiKey || winKey;
-
-          if (finalKey && finalKey !== 'undefined' && finalKey.length > 5) {
-            hasKey = true;
-          }
-        } catch (e) {}
-      }
-
-      setState(p => ({ ...p, hasApiKey: hasKey, isAIStudio }));
-    };
-
-    checkKeyStatus();
-
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -136,19 +95,6 @@ const App: React.FC = () => {
       }
     }
   }, [state.currentScene, state.history, state.character]);
-
-  const handleOpenKeySelector = async () => {
-    // @ts-ignore
-    if (window.aistudio) {
-      try {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        setState(p => ({ ...p, hasApiKey: true, error: null }));
-      } catch (e) {
-        setState(p => ({ ...p, error: "Failed to connect to Google Account." }));
-      }
-    }
-  };
 
   const speakText = async (text: string) => {
     if (!audioCtxRef.current) audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
@@ -224,6 +170,7 @@ const App: React.FC = () => {
   };
 
   const startGame = async (theme: string) => {
+    if (!theme.trim()) return;
     setState(prev => ({ ...prev, isGenerating: true, error: null, theme, character: INITIAL_CHARACTER, history: [], customAction: '', startTheme: theme }));
     try {
       const scene = await generateInitialScene(theme);
@@ -232,13 +179,13 @@ const App: React.FC = () => {
       if (scene.statChanges) updateCharacter(scene.statChanges);
       if (state.autoDictate) speakText(`${scene.title}. ${scene.description}`);
     } catch (err: any) { 
-      if (err.message?.includes("Requested entity was not found")) {
-        setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost. Please reconnect." }));
-        // @ts-ignore
-        if (window.aistudio) window.aistudio.openSelectKey();
-      } else {
-        setState(p => ({ ...p, isGenerating: false, error: "Initialization failed. Please ensure an API Key is configured in your project settings." })); 
-      }
+      setState(p => ({ 
+        ...p, 
+        isGenerating: false, 
+        error: err.message === 'API_KEY_MISSING' 
+          ? "API Key missing. Please ensure the API_KEY environment variable is set in your host settings (e.g. Netlify)." 
+          : "Failed to initialize story. Please check your connection or API key." 
+      })); 
     }
   };
 
@@ -261,13 +208,7 @@ const App: React.FC = () => {
       if (nextScene.statChanges) updateCharacter(nextScene.statChanges);
       if (state.autoDictate) speakText(`${nextScene.title}. ${nextScene.description}`);
     } catch (err: any) { 
-      if (err.message?.includes("Requested entity was not found")) {
-        setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key lost." }));
-        // @ts-ignore
-        if (window.aistudio) window.aistudio.openSelectKey();
-      } else {
-        setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
-      }
+      setState(p => ({ ...p, isGenerating: false, error: "The path is blocked. (API error)" })); 
     }
   };
 
@@ -292,9 +233,6 @@ const App: React.FC = () => {
           setSpeechSpeed={(val) => setState(p => ({ ...p, speechSpeed: val }))}
           onPreviewVoice={() => speakText("Greetings adventurer. I shall be your guide.")}
           isSpeaking={state.isSpeaking}
-          hasApiKey={state.hasApiKey}
-          isAIStudio={state.isAIStudio}
-          onConnectKey={handleOpenKeySelector}
           error={state.error}
         />
       ) : (
