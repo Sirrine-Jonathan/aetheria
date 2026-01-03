@@ -1,10 +1,9 @@
 
-const CACHE_NAME = 'aetheria-v2';
+const CACHE_NAME = 'aetheria-v3';
 const ASSETS = [
-  './',
-  './index.html',
-  './index.tsx',
-  './manifest.json',
+  '/',
+  '/index.html',
+  '/manifest.json',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap'
 ];
@@ -44,6 +43,17 @@ self.addEventListener('fetch', (event) => {
   const isSameOrigin = url.origin === self.location.origin;
 
   if (!isSameOrigin && !isExternal) return;
+
+  // Handle navigation requests (SPA support)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {

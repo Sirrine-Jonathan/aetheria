@@ -91,7 +91,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js', { scope: './' })
+                navigator.serviceWorker.register('sw.js', { scope: '/' })
                     .then(reg => console.log('Service Worker registered', reg))
                     .catch(err => {
                         console.warn('Service Worker registration skipped or failed.', err);
