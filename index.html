@@ -8,7 +8,11 @@
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#8b5cf6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Aetheria">
     <meta name="description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
+    
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=192&h=192&auto=format&fit=crop">
     <link rel="icon" type="image/x-icon" href="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=32&h=32&auto=format&fit=crop">
@@ -52,7 +56,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.2);
         }
-        /* Mobile-first adjustments for immersive content */
         @media (max-width: 640px) {
           .glass-panel {
             border-radius: 20px;
@@ -72,12 +75,11 @@
 </head>
 <body>
     <div id="root"></div>
-    <!-- Entry point for the React application -->
     <script type="module" src="index.tsx"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
+                navigator.serviceWorker.register('sw.js', { scope: './' })
                     .then(reg => console.log('Service Worker registered', reg))
                     .catch(err => {
                         console.warn('Service Worker registration skipped or failed.', err);

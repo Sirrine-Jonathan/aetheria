@@ -4,8 +4,10 @@ import { Scene, Choice, CharacterState } from "../types";
 
 // Create a new instance right before each API call to ensure current API key usage
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
+  // Safe check for process.env to prevent ReferenceError: process is not defined
+  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+  
+  if (!apiKey || apiKey === 'undefined') {
     throw new Error("API_KEY_MISSING");
   }
   return new GoogleGenAI({ apiKey });
@@ -161,7 +163,6 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
   const ai = getAI();
   const prompt = `Transcribe the user's speech from the audio into a short, clear sentence describing an action in a roleplaying game. Do not include extra commentary, just the transcription.`;
 
-  // Fix contents structure to use a single Content object with parts array
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
     contents: {
@@ -173,6 +174,5 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
     config: { responseMimeType: "text/plain" }
   });
 
-  // Access the text property directly (it's a getter, not a method)
   return response.text?.trim() || '';
 }

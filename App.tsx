@@ -8,9 +8,6 @@ import { StartScreen } from './components/StartScreen';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { decode, decodeAudioData, blobToPCM } from './utils/audioUtils';
 
-// Removed conflicting manual aistudio declaration. 
-// The environment already provides a global AIStudio type for window.aistudio.
-
 const INITIAL_CHARACTER: CharacterState = {
   health: 100,
   maxHealth: 100,
@@ -61,22 +58,32 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkKeyStatus = async () => {
-      // Check for aistudio global provided by environment
+      let hasKey = false;
+
+      // 1. Check for aistudio global (AI Studio environment)
       if (window.aistudio) {
         try {
-          const hasKey = await window.aistudio.hasSelectedApiKey();
-          setState(p => ({ ...p, hasApiKey: hasKey }));
+          hasKey = await window.aistudio.hasSelectedApiKey();
         } catch (e) {
           console.warn("Key check failed", e);
         }
-      } else {
-        // If not in aistudio environment, check if process.env has a key
-        const envKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
-        if (envKey && envKey !== 'undefined') {
-          setState(p => ({ ...p, hasApiKey: true }));
+      }
+
+      // 2. Fallback to process.env (Standard deployments with configured secrets)
+      if (!hasKey) {
+        try {
+          const envKey = process.env.API_KEY;
+          if (envKey && envKey !== 'undefined') {
+            hasKey = true;
+          }
+        } catch (e) {
+          // process might not be defined in all environments
         }
       }
+
+      setState(p => ({ ...p, hasApiKey: hasKey }));
     };
+
     checkKeyStatus();
 
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -125,10 +132,18 @@ const App: React.FC = () => {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        setState(p => ({ ...p, hasApiKey: true }));
+        // GUIDELINE: Must assume the key selection was successful after triggering openSelectKey
+        setState(p => ({ ...p, hasApiKey: true, error: null }));
       } catch (e) {
         console.error("Failed to open key selector", e);
+        setState(p => ({ ...p, error: "Failed to connect to Google Account." }));
       }
+    } else {
+      // User is likely on a standalone deployment like Netlify without an API_KEY set.
+      setState(p => ({ 
+        ...p, 
+        error: "Google Key Selection is only available within the AI Studio environment. For Netlify deployments, please set the API_KEY environment variable in your site settings." 
+      }));
     }
   };
 
@@ -212,8 +227,11 @@ const App: React.FC = () => {
   const startGame = async (theme: string) => {
     if (!state.hasApiKey) {
       await handleOpenKeySelector();
-      // Guideline: MUST assume the key selection was successful and proceed to the app
+      // If we still don't have a key after trying to open selector (e.g. not in AI studio)
+      // we stop here so generateInitialScene doesn't throw.
+      if (!window.aistudio && !process.env.API_KEY) return;
     }
+    
     setState(prev => ({ ...prev, isGenerating: true, error: null, theme, character: INITIAL_CHARACTER, history: [], customAction: '', startTheme: theme }));
     try {
       const scene = await generateInitialScene(theme);
@@ -224,10 +242,9 @@ const App: React.FC = () => {
     } catch (err: any) { 
       if (err.message?.includes("Requested entity was not found")) {
         setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost. Please reconnect." }));
-        // Prompt to reconnect via openSelectKey as per guideline
         if (window.aistudio) window.aistudio.openSelectKey();
       } else {
-        setState(p => ({ ...p, isGenerating: false, error: "Beginning failed." })); 
+        setState(p => ({ ...p, isGenerating: false, error: "Beginning failed. Ensure your API Key is valid and has Gemini credits." })); 
       }
     }
   };
@@ -253,7 +270,6 @@ const App: React.FC = () => {
     } catch (err: any) { 
       if (err.message?.includes("Requested entity was not found")) {
         setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost." }));
-        // Prompt to reconnect via openSelectKey as per guideline
         if (window.aistudio) window.aistudio.openSelectKey();
       } else {
         setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 

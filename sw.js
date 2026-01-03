@@ -1,14 +1,24 @@
 
-const CACHE_NAME = 'aetheria-cache-v1';
+const CACHE_NAME = 'aetheria-v2';
 const ASSETS = [
-  'index.html',
-  'manifest.json'
+  './',
+  './index.html',
+  './index.tsx',
+  './manifest.json',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap'
+];
+
+const EXTERNAL_ORIGINS = [
+  'esm.sh',
+  'fonts.gstatic.com',
+  'images.unsplash.com',
+  'picsum.photos'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use Promise.allSettled so one missing asset doesn't break the entire SW installation
       return Promise.allSettled(ASSETS.map(asset => cache.add(asset)));
     })
   );
@@ -27,11 +37,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests from the same origin to avoid Quota or CORS errors in previews
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
+  const isExternal = EXTERNAL_ORIGINS.some(origin => url.hostname.includes(origin));
+  const isSameOrigin = url.origin === self.location.origin;
+
+  if (!isSameOrigin && !isExternal) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -39,18 +51,25 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
       return fetch(event.request).then((response) => {
-        // Cache valid same-origin responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+        if (!response || response.status !== 200) {
           return response;
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+
+        // Only cache basic responses or specific external ones
+        const isCacheable = response.type === 'basic' || response.type === 'cors';
+        if (isCacheable) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
         return response;
       }).catch(() => {
-        // Fail gracefully on network errors
-        return new Response('Network error occurred', { status: 408 });
+        // Fallback for images if offline
+        if (event.request.destination === 'image') {
+          return caches.match('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=192&h=192&auto=format&fit=crop');
+        }
+        return new Response('Offline content unavailable', { status: 408 });
       });
     })
   );
