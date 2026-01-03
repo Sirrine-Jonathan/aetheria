@@ -27,7 +27,13 @@ const PRESETS = [
   "A mystical samurai in a forest of shifting seasons"
 ];
 
-const VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Zephyr'];
+const VOICE_OPTIONS = [
+  { name: 'Charon', desc: 'Deep & Authoritative', color: 'border-blue-500/30' },
+  { name: 'Puck', desc: 'Light & Playful', color: 'border-green-500/30' },
+  { name: 'Kore', desc: 'Soft & Melodic', color: 'border-pink-500/30' },
+  { name: 'Fenrir', desc: 'Rugged & Intense', color: 'border-orange-500/30' },
+  { name: 'Zephyr', desc: 'Smooth & Ethereal', color: 'border-cyan-500/30' }
+];
 
 export const StartScreen: React.FC<StartScreenProps> = ({ 
   onStart, isLoading, isListening, onMicClick, startTheme, setStartTheme, 
@@ -63,7 +69,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
 
       <div className="max-w-4xl w-full px-6 py-12 md:py-20 fade-in space-y-12">
         
-        {/* API Key / Setup Info - Required for gemini-3-pro-image-preview */}
+        {/* API Key / Setup Info */}
         {!hasApiKey && (
           <div className="p-8 bg-purple-500/10 border border-purple-500/20 rounded-[2.5rem] text-left space-y-4 max-w-2xl mx-auto backdrop-blur-xl">
             <h3 className="text-white font-black uppercase tracking-widest text-xs flex items-center gap-2">
@@ -146,60 +152,82 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         </form>
 
-        {/* Customization Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto pt-8">
-          {/* Voice Selector */}
-          <div className="space-y-3">
-            <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest block text-left ml-2">Guardian Voice</label>
-            <div className="flex gap-2">
-              <select 
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-sm text-gray-300 focus:outline-none focus:border-purple-500/50 appearance-none cursor-pointer"
-              >
-                {VOICES.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+        {/* Narrative Customization (Voice & Speed) */}
+        <div className="max-w-4xl mx-auto space-y-10 pt-10 border-t border-white/5">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Select Your Guardian Voice</h3>
               <button 
                 onClick={onPreviewVoice}
                 disabled={isSpeaking}
-                className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-colors disabled:opacity-30"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 hover:text-white transition-all hover:bg-white/10 active:scale-95 disabled:opacity-30"
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                Preview Voice
               </button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {VOICE_OPTIONS.map((voice) => (
+                <button
+                  key={voice.name}
+                  onClick={() => setSelectedVoice(voice.name)}
+                  className={`relative p-4 rounded-3xl border-2 transition-all flex flex-col items-center text-center group ${selectedVoice === voice.name ? `bg-purple-600/10 border-purple-500/80 shadow-[0_0_20px_rgba(168,85,247,0.2)]` : `bg-white/[0.02] border-white/5 hover:border-white/10`}`}
+                >
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-500 group-hover:scale-110 ${selectedVoice === voice.name ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-500'}`}>
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                  </div>
+                  <span className={`text-xs font-black uppercase tracking-widest ${selectedVoice === voice.name ? 'text-purple-400' : 'text-gray-400'}`}>{voice.name}</span>
+                  <span className="text-[9px] text-gray-600 mt-1 leading-tight">{voice.desc}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Speed Slider */}
-          <div className="space-y-3">
-            <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest block text-left ml-2">Speech Pace ({speechSpeed}x)</label>
-            <input 
-              type="range" 
-              min="0.5" 
-              max="2.0" 
-              step="0.1" 
-              value={speechSpeed} 
-              onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
-              className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-purple-500"
-            />
+          <div className="max-w-xl mx-auto space-y-4">
+            <div className="flex justify-between items-end px-2">
+              <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Narration Pace</label>
+              <span className="text-xl font-bold text-purple-400 tabular-nums">{speechSpeed}x</span>
+            </div>
+            <div className="relative px-2 py-4">
+              <div className="absolute left-2 right-2 h-0.5 bg-white/5 top-1/2 -translate-y-1/2 rounded-full" />
+              <input 
+                type="range" 
+                min="0.5" 
+                max="2.0" 
+                step="0.1" 
+                value={speechSpeed} 
+                onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
+                className="relative w-full h-8 bg-transparent appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 z-10 block"
+              />
+              <div className="flex justify-between mt-2 text-[9px] text-gray-700 font-black uppercase tracking-tighter">
+                <span>Ethereal Calm (0.5x)</span>
+                <span>Reality Sync (1.0x)</span>
+                <span>Frenetic Vision (2.0x)</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Destiny Presets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-12">
-          {PRESETS.map((preset, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                setStartTheme(preset);
-                onStart(preset);
-              }}
-              disabled={isLoading || isListening}
-              className="group relative p-8 text-left rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-purple-500/30 transition-all text-sm text-gray-500 hover:text-white overflow-hidden shadow-lg active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <div className="absolute top-0 left-0 w-1.5 h-0 bg-purple-500 group-hover:h-full transition-all duration-300" />
-              <span className="block font-medium leading-relaxed italic">"{preset}"</span>
-            </button>
-          ))}
+        <div className="space-y-6 pt-10 border-t border-white/5">
+          <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Seed Your Legend</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {PRESETS.map((preset, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setStartTheme(preset);
+                  onStart(preset);
+                }}
+                disabled={isLoading || isListening}
+                className="group relative p-8 text-left rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-purple-500/30 transition-all text-sm text-gray-500 hover:text-white overflow-hidden shadow-lg active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <div className="absolute top-0 left-0 w-1.5 h-0 bg-purple-500 group-hover:h-full transition-all duration-300" />
+                <span className="block font-medium leading-relaxed italic">"{preset}"</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

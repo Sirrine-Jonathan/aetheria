@@ -103,7 +103,6 @@ const App: React.FC = () => {
       try {
         // @ts-ignore
         await window.aistudio.openSelectKey();
-        // Mandatory: Proceed assuming success after triggering the dialog per guidelines
         setState(p => ({ ...p, hasApiKey: true, error: null }));
       } catch (e) {
         setState(p => ({ ...p, error: "Failed to open account selector." }));
@@ -125,6 +124,9 @@ const App: React.FC = () => {
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(ctx.destination);
+        // FIX: Apply the speech speed to the playback rate
+        source.playbackRate.value = state.speechSpeed;
+        
         source.onended = () => {
           setState(p => ({ ...p, isSpeaking: false }));
           if (state.autoListen) startListening(false);
