@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GameState, Scene, Choice, CharacterState } from './types';
 import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio } from './services/geminiService';
@@ -26,12 +25,13 @@ const App: React.FC = () => {
     isSpeaking: boolean; 
     isListening: boolean;
     isSidebarOpen: boolean;
-    viewingHistoryIndex: number | null; // null means active scene
+    viewingHistoryIndex: number | null;
     customAction: string;
     startTheme: string;
     selectedVoice: string;
     speechSpeed: number;
     hasApiKey: boolean;
+    isAIStudio: boolean;
   }>({
     currentScene: null,
     history: [],
@@ -49,7 +49,8 @@ const App: React.FC = () => {
     startTheme: '',
     selectedVoice: 'Charon',
     speechSpeed: 1.0,
-    hasApiKey: false
+    hasApiKey: false,
+    isAIStudio: false
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -59,9 +60,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKeyStatus = async () => {
       let hasKey = false;
+      const isAIStudio = !!window.aistudio;
 
-      // 1. Check for aistudio global (AI Studio environment)
-      if (window.aistudio) {
+      if (isAIStudio) {
         try {
           hasKey = await window.aistudio.hasSelectedApiKey();
         } catch (e) {
@@ -69,19 +70,18 @@ const App: React.FC = () => {
         }
       }
 
-      // 2. Fallback to process.env (Standard deployments with configured secrets)
+      // Check process.env (Standard deployments)
       if (!hasKey) {
         try {
-          const envKey = process.env.API_KEY;
+          // @ts-ignore
+          const envKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
           if (envKey && envKey !== 'undefined') {
             hasKey = true;
           }
-        } catch (e) {
-          // process might not be defined in all environments
-        }
+        } catch (e) {}
       }
 
-      setState(p => ({ ...p, hasApiKey: hasKey }));
+      setState(p => ({ ...p, hasApiKey: hasKey, isAIStudio }));
     };
 
     checkKeyStatus();
@@ -132,24 +132,12 @@ const App: React.FC = () => {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        // GUIDELINE: Must assume the key selection was successful after triggering openSelectKey
         setState(p => ({ ...p, hasApiKey: true, error: null }));
       } catch (e) {
-        console.error("Failed to open key selector", e);
         setState(p => ({ ...p, error: "Failed to connect to Google Account." }));
       }
-    } else {
-      // User is likely on a standalone deployment like Netlify without an API_KEY set.
-      setState(p => ({ 
-        ...p, 
-        error: "Google Key Selection is only available within the AI Studio environment. For Netlify deployments, please set the API_KEY environment variable in your site settings." 
-      }));
     }
   };
-
-  const toggleAutoDictate = () => setState(p => ({ ...p, autoDictate: !p.autoDictate }));
-  const toggleAutoListen = () => setState(p => ({ ...p, autoListen: !p.autoListen }));
-  const toggleSidebar = () => setState(p => ({ ...p, isSidebarOpen: !p.isSidebarOpen }));
 
   const speakText = async (text: string) => {
     if (!audioCtxRef.current) audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
@@ -225,13 +213,6 @@ const App: React.FC = () => {
   };
 
   const startGame = async (theme: string) => {
-    if (!state.hasApiKey) {
-      await handleOpenKeySelector();
-      // If we still don't have a key after trying to open selector (e.g. not in AI studio)
-      // we stop here so generateInitialScene doesn't throw.
-      if (!window.aistudio && !process.env.API_KEY) return;
-    }
-    
     setState(prev => ({ ...prev, isGenerating: true, error: null, theme, character: INITIAL_CHARACTER, history: [], customAction: '', startTheme: theme }));
     try {
       const scene = await generateInitialScene(theme);
@@ -244,7 +225,7 @@ const App: React.FC = () => {
         setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost. Please reconnect." }));
         if (window.aistudio) window.aistudio.openSelectKey();
       } else {
-        setState(p => ({ ...p, isGenerating: false, error: "Beginning failed. Ensure your API Key is valid and has Gemini credits." })); 
+        setState(p => ({ ...p, isGenerating: false, error: "Initialization failed. Please ensure an API Key is configured." })); 
       }
     }
   };
@@ -269,7 +250,7 @@ const App: React.FC = () => {
       if (state.autoDictate) speakText(`${nextScene.title}. ${nextScene.description}`);
     } catch (err: any) { 
       if (err.message?.includes("Requested entity was not found")) {
-        setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost." }));
+        setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key lost." }));
         if (window.aistudio) window.aistudio.openSelectKey();
       } else {
         setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
@@ -281,12 +262,6 @@ const App: React.FC = () => {
     localStorage.removeItem(STORAGE_KEY);
     setState(p => ({ ...p, currentScene: null, history: [], theme: '', error: null, isSidebarOpen: false, character: INITIAL_CHARACTER, viewingHistoryIndex: null, customAction: '', startTheme: '' }));
   };
-
-  const selectHistory = (index: number | null) => {
-    setState(p => ({ ...p, viewingHistoryIndex: index, isSidebarOpen: false }));
-  };
-
-  const activeScene = state.viewingHistoryIndex !== null ? state.history[state.viewingHistoryIndex] : state.currentScene;
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full bg-[#050505] overflow-hidden relative">
@@ -302,42 +277,43 @@ const App: React.FC = () => {
           setSelectedVoice={(val) => setState(p => ({ ...p, selectedVoice: val }))}
           speechSpeed={state.speechSpeed}
           setSpeechSpeed={(val) => setState(p => ({ ...p, speechSpeed: val }))}
-          onPreviewVoice={() => speakText("Greetings adventurer. I shall be your guide through the Chronicle.")}
+          onPreviewVoice={() => speakText("Greetings adventurer. I shall be your guide.")}
           isSpeaking={state.isSpeaking}
           hasApiKey={state.hasApiKey}
+          isAIStudio={state.isAIStudio}
           onConnectKey={handleOpenKeySelector}
           error={state.error}
         />
       ) : (
         <>
-          {state.isSidebarOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={toggleSidebar} />}
+          {state.isSidebarOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setState(p => ({ ...p, isSidebarOpen: false }))} />}
           <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 md:relative md:translate-x-0 ${state.isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
             <Sidebar 
               history={state.history} 
               onReset={resetGame}
               autoDictate={state.autoDictate}
               autoListen={state.autoListen}
-              onToggleDictate={toggleAutoDictate}
-              onToggleListen={toggleAutoListen}
+              onToggleDictate={() => setState(p => ({ ...p, autoDictate: !p.autoDictate }))}
+              onToggleListen={() => setState(p => ({ ...p, autoListen: !p.autoListen }))}
               onCloseMobile={() => setState(p => ({ ...p, isSidebarOpen: false }))}
               character={state.character}
               currentScene={state.currentScene}
               viewingIndex={state.viewingHistoryIndex}
-              onSelectHistory={selectHistory}
+              onSelectHistory={(idx) => setState(p => ({ ...p, viewingHistoryIndex: idx, isSidebarOpen: false }))}
             />
           </div>
           <main className="flex-1 relative overflow-y-auto w-full">
             {state.isGenerating && <LoadingOverlay />}
             <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0a0a0a] sticky top-0 z-30">
-              <button onClick={toggleSidebar} className="p-2 text-gray-400">
+              <button onClick={() => setState(p => ({ ...p, isSidebarOpen: true }))} className="p-2 text-gray-400">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
               </button>
               <h1 className="serif text-xl font-bold text-purple-400">Aetheria</h1>
               <div className="w-10" />
             </div>
-            {activeScene && (
+            { (state.viewingHistoryIndex !== null ? state.history[state.viewingHistoryIndex] : state.currentScene) && (
               <StoryDisplay 
-                scene={activeScene} 
+                scene={state.viewingHistoryIndex !== null ? state.history[state.viewingHistoryIndex] : state.currentScene!} 
                 onChoice={handleChoice} 
                 onCustomAction={handleChoice}
                 isGenerating={state.isGenerating}
@@ -345,9 +321,12 @@ const App: React.FC = () => {
                 isListening={state.isListening}
                 error={state.error}
                 onMicClick={() => startListening(false)}
-                onSpeakClick={() => speakText(`${activeScene.title}. ${activeScene.description}`)}
+                onSpeakClick={() => {
+                  const s = state.viewingHistoryIndex !== null ? state.history[state.viewingHistoryIndex] : state.currentScene;
+                  if (s) speakText(`${s.title}. ${s.description}`);
+                }}
                 isHistorical={state.viewingHistoryIndex !== null}
-                onReturnToActive={() => selectHistory(null)}
+                onReturnToActive={() => setState(p => ({ ...p, viewingHistoryIndex: null }))}
                 customAction={state.customAction}
                 onCustomActionChange={(val) => setState(p => ({ ...p, customAction: val }))}
               />
