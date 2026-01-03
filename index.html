@@ -11,6 +11,7 @@
     <meta name="description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=192&h=192&auto=format&fit=crop">
+    <link rel="icon" type="image/x-icon" href="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=32&h=32&auto=format&fit=crop">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
@@ -71,17 +72,15 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- Entry point for the React application -->
+    <script type="module" src="index.tsx"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Register service worker using a strictly origin-relative path to prevent domain mismatch errors
-                // in sandboxed preview environments.
                 navigator.serviceWorker.register('sw.js')
                     .then(reg => console.log('Service Worker registered', reg))
                     .catch(err => {
-                        // In many cloud preview environments, Service Workers are blocked by sandbox CSP.
-                        // We log a warning instead of a hard error to prevent breaking the app.
-                        console.warn('Service Worker registration skipped or failed. This is often due to browser sandbox restrictions in preview environments.', err);
+                        console.warn('Service Worker registration skipped or failed.', err);
                     });
             });
         }

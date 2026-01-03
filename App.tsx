@@ -8,6 +8,9 @@ import { StartScreen } from './components/StartScreen';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { decode, decodeAudioData, blobToPCM } from './utils/audioUtils';
 
+// Removed conflicting manual aistudio declaration. 
+// The environment already provides a global AIStudio type for window.aistudio.
+
 const INITIAL_CHARACTER: CharacterState = {
   health: 100,
   maxHealth: 100,
@@ -31,6 +34,7 @@ const App: React.FC = () => {
     startTheme: string;
     selectedVoice: string;
     speechSpeed: number;
+    hasApiKey: boolean;
   }>({
     currentScene: null,
     history: [],
@@ -47,7 +51,8 @@ const App: React.FC = () => {
     customAction: '',
     startTheme: '',
     selectedVoice: 'Charon',
-    speechSpeed: 1.0
+    speechSpeed: 1.0,
+    hasApiKey: false
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -55,6 +60,25 @@ const App: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
+    const checkKeyStatus = async () => {
+      // Check for aistudio global provided by environment
+      if (window.aistudio) {
+        try {
+          const hasKey = await window.aistudio.hasSelectedApiKey();
+          setState(p => ({ ...p, hasApiKey: hasKey }));
+        } catch (e) {
+          console.warn("Key check failed", e);
+        }
+      } else {
+        // If not in aistudio environment, check if process.env has a key
+        const envKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
+        if (envKey && envKey !== 'undefined') {
+          setState(p => ({ ...p, hasApiKey: true }));
+        }
+      }
+    };
+    checkKeyStatus();
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -92,10 +116,21 @@ const App: React.FC = () => {
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanData));
       } catch (e) {
-        console.warn("Could not save to localStorage: quota exceeded or other error", e);
+        console.warn("Could not save to localStorage", e);
       }
     }
   }, [state.currentScene, state.history, state.character]);
+
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        setState(p => ({ ...p, hasApiKey: true }));
+      } catch (e) {
+        console.error("Failed to open key selector", e);
+      }
+    }
+  };
 
   const toggleAutoDictate = () => setState(p => ({ ...p, autoDictate: !p.autoDictate }));
   const toggleAutoListen = () => setState(p => ({ ...p, autoListen: !p.autoListen }));
@@ -175,6 +210,10 @@ const App: React.FC = () => {
   };
 
   const startGame = async (theme: string) => {
+    if (!state.hasApiKey) {
+      await handleOpenKeySelector();
+      // Guideline: MUST assume the key selection was successful and proceed to the app
+    }
     setState(prev => ({ ...prev, isGenerating: true, error: null, theme, character: INITIAL_CHARACTER, history: [], customAction: '', startTheme: theme }));
     try {
       const scene = await generateInitialScene(theme);
@@ -182,8 +221,14 @@ const App: React.FC = () => {
       setState(p => ({ ...p, currentScene: { ...scene, imageUrl }, isGenerating: false }));
       if (scene.statChanges) updateCharacter(scene.statChanges);
       if (state.autoDictate) speakText(`${scene.title}. ${scene.description}`);
-    } catch (err) { 
-      setState(p => ({ ...p, isGenerating: false, error: "Beginning failed." })); 
+    } catch (err: any) { 
+      if (err.message?.includes("Requested entity was not found")) {
+        setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost. Please reconnect." }));
+        // Prompt to reconnect via openSelectKey as per guideline
+        if (window.aistudio) window.aistudio.openSelectKey();
+      } else {
+        setState(p => ({ ...p, isGenerating: false, error: "Beginning failed." })); 
+      }
     }
   };
 
@@ -205,8 +250,14 @@ const App: React.FC = () => {
       setState(p => ({ ...p, currentScene: { ...nextScene, imageUrl }, isGenerating: false }));
       if (nextScene.statChanges) updateCharacter(nextScene.statChanges);
       if (state.autoDictate) speakText(`${nextScene.title}. ${nextScene.description}`);
-    } catch (err) { 
-      setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
+    } catch (err: any) { 
+      if (err.message?.includes("Requested entity was not found")) {
+        setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost." }));
+        // Prompt to reconnect via openSelectKey as per guideline
+        if (window.aistudio) window.aistudio.openSelectKey();
+      } else {
+        setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
+      }
     }
   };
 
@@ -237,6 +288,9 @@ const App: React.FC = () => {
           setSpeechSpeed={(val) => setState(p => ({ ...p, speechSpeed: val }))}
           onPreviewVoice={() => speakText("Greetings adventurer. I shall be your guide through the Chronicle.")}
           isSpeaking={state.isSpeaking}
+          hasApiKey={state.hasApiKey}
+          onConnectKey={handleOpenKeySelector}
+          error={state.error}
         />
       ) : (
         <>

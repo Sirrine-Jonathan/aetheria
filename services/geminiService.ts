@@ -2,10 +2,17 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { Scene, Choice, CharacterState } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Create a new instance right before each API call to ensure current API key usage
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY_MISSING");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 const STORY_MODEL = 'gemini-3-flash-preview';
-const IMAGE_MODEL = 'gemini-2.5-flash-image';
+const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 const CHARACTER_SCHEMA = {
@@ -20,6 +27,7 @@ const CHARACTER_SCHEMA = {
 };
 
 export async function generateInitialScene(theme: string): Promise<Scene> {
+  const ai = getAI();
   const prompt = `Start a new interactive adventure based on: "${theme}". 
   Provide a vivid opening. Include:
   1. Title & Description.
@@ -62,6 +70,7 @@ export async function generateInitialScene(theme: string): Promise<Scene> {
 }
 
 export async function generateNextScene(history: Scene[], input: Choice | string, character: CharacterState): Promise<Scene> {
+  const ai = getAI();
   const actionText = typeof input === 'string' ? input : input.action;
   const contextHistory = history.slice(-5).map(s => `Scene: ${s.title}\nDesc: ${s.description}`).join('\n\n');
   const invText = character.inventory.length > 0 ? character.inventory.join(", ") : "Empty Handed";
@@ -110,22 +119,30 @@ export async function generateNextScene(history: Scene[], input: Choice | string
 
 export async function generateSceneImage(prompt: string): Promise<string> {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: IMAGE_MODEL,
       contents: { parts: [{ text: `Masterpiece cinematic digital art, concept art style: ${prompt}` }] },
-      config: { imageConfig: { aspectRatio: "16:9" } }
+      config: { 
+        imageConfig: { 
+          aspectRatio: "16:9",
+          imageSize: "1K" 
+        } 
+      }
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
     }
     return `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1200/675`;
-  } catch (err) {
-    return `https://picsum.photos/seed/error/1200/675`;
+  } catch (err: any) {
+    console.error("Image generation error:", err);
+    throw err;
   }
 }
 
 export async function textToSpeech(text: string, voice: string = 'Charon', speed: number = 1.0): Promise<string> {
+  const ai = getAI();
   const speedLabel = speed > 1.3 ? "quickly" : speed < 0.9 ? "slowly" : "normally";
   const prompt = `Say ${speedLabel} and dramatically: ${text}`;
   
@@ -141,16 +158,21 @@ export async function textToSpeech(text: string, voice: string = 'Charon', speed
 }
 
 export async function transcribeAudio(audioBase64: string): Promise<string> {
+  const ai = getAI();
   const prompt = `Transcribe the user's speech from the audio into a short, clear sentence describing an action in a roleplaying game. Do not include extra commentary, just the transcription.`;
 
+  // Fix contents structure to use a single Content object with parts array
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
-    contents: [
-      { inlineData: { data: audioBase64, mimeType: 'audio/pcm;rate=16000' } },
-      { text: prompt }
-    ],
+    contents: {
+      parts: [
+        { inlineData: { data: audioBase64, mimeType: 'audio/pcm;rate=16000' } },
+        { text: prompt }
+      ]
+    },
     config: { responseMimeType: "text/plain" }
   });
 
+  // Access the text property directly (it's a getter, not a method)
   return response.text?.trim() || '';
 }
