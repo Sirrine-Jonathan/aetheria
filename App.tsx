@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GameState, Scene, Choice, CharacterState } from './types';
 import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio } from './services/geminiService';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
     startTheme: string;
     selectedVoice: string;
     speechSpeed: number;
+    hasApiKey: boolean;
   }>({
     currentScene: null,
     history: [],
@@ -47,6 +49,7 @@ const App: React.FC = () => {
     startTheme: '',
     selectedVoice: 'Charon',
     speechSpeed: 1.0,
+    hasApiKey: false,
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -54,6 +57,18 @@ const App: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
+    const checkApiKey = async () => {
+      // @ts-ignore
+      if (window.aistudio?.hasSelectedApiKey) {
+        // @ts-ignore
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setState(p => ({ ...p, hasApiKey: hasKey }));
+      } else if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
+        setState(p => ({ ...p, hasApiKey: true }));
+      }
+    };
+    checkApiKey();
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
@@ -68,33 +83,22 @@ const App: React.FC = () => {
   useEffect(() => {
     if (state.currentScene) {
       try {
-        const { 
-          isGenerating, isSpeaking, isListening, error, 
-          isSidebarOpen, viewingHistoryIndex, ...toSave 
-        } = state;
-
-        const sanitizedHistory = toSave.history.map(scene => ({ 
-          ...scene, 
-          imageUrl: scene.imageUrl?.startsWith('data:') ? undefined : scene.imageUrl 
-        }));
-        
-        const sanitizedCurrentScene = toSave.currentScene ? { 
-          ...toSave.currentScene, 
-          imageUrl: toSave.currentScene.imageUrl?.startsWith('data:') ? undefined : toSave.currentScene.imageUrl 
-        } : null;
-
-        const cleanData = {
-          ...toSave,
-          history: sanitizedHistory,
-          currentScene: sanitizedCurrentScene
-        };
-
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanData));
+        const { isGenerating, isSpeaking, isListening, error, isSidebarOpen, viewingHistoryIndex, ...toSave } = state;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       } catch (e) {
         console.warn("Could not save to localStorage", e);
       }
     }
   }, [state.currentScene, state.history, state.character]);
+
+  const handleOpenKeySelector = async () => {
+    // @ts-ignore
+    if (window.aistudio?.openSelectKey) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+      setState(p => ({ ...p, hasApiKey: true, error: null }));
+    }
+  };
 
   const speakText = async (text: string) => {
     if (!audioCtxRef.current) audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
@@ -179,13 +183,12 @@ const App: React.FC = () => {
       if (scene.statChanges) updateCharacter(scene.statChanges);
       if (state.autoDictate) speakText(`${scene.title}. ${scene.description}`);
     } catch (err: any) { 
-      setState(p => ({ 
-        ...p, 
-        isGenerating: false, 
-        error: err.message === 'API_KEY_MISSING' 
-          ? "API Key missing. Please ensure the API_KEY environment variable is set in your host settings (e.g. Netlify)." 
-          : "Failed to initialize story. Please check your connection or API key." 
-      })); 
+      let errMsg = "Initialization failed.";
+      if (err.message?.includes("Requested entity was not found")) {
+        errMsg = "API Key error. Please reconnect your account.";
+        setState(p => ({ ...p, hasApiKey: false }));
+      }
+      setState(p => ({ ...p, isGenerating: false, error: errMsg })); 
     }
   };
 
@@ -233,6 +236,8 @@ const App: React.FC = () => {
           setSpeechSpeed={(val) => setState(p => ({ ...p, speechSpeed: val }))}
           onPreviewVoice={() => speakText("Greetings adventurer. I shall be your guide.")}
           isSpeaking={state.isSpeaking}
+          hasApiKey={state.hasApiKey}
+          onConnectKey={handleOpenKeySelector}
           error={state.error}
         />
       ) : (

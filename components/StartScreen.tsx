@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface StartScreenProps {
@@ -13,6 +14,8 @@ interface StartScreenProps {
   setSpeechSpeed: (val: number) => void;
   onPreviewVoice: () => void;
   isSpeaking: boolean;
+  hasApiKey: boolean;
+  onConnectKey: () => void;
   error?: string | null;
 }
 
@@ -24,9 +27,12 @@ const PRESETS = [
   "A mystical samurai in a forest of shifting seasons"
 ];
 
+const VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Zephyr'];
+
 export const StartScreen: React.FC<StartScreenProps> = ({ 
   onStart, isLoading, isListening, onMicClick, startTheme, setStartTheme, 
-  error
+  selectedVoice, setSelectedVoice, speechSpeed, setSpeechSpeed, 
+  onPreviewVoice, isSpeaking, hasApiKey, onConnectKey, error
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,12 +63,29 @@ export const StartScreen: React.FC<StartScreenProps> = ({
 
       <div className="max-w-4xl w-full px-6 py-12 md:py-20 fade-in space-y-12">
         
+        {/* API Key / Setup Info */}
+        {!hasApiKey && (
+          <div className="p-8 bg-purple-500/10 border border-purple-500/20 rounded-[2.5rem] text-left space-y-4 max-w-2xl mx-auto backdrop-blur-xl">
+            <h3 className="text-white font-black uppercase tracking-widest text-xs flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              Reality Weaver Connection Required
+            </h3>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              To weave these high-fidelity chronicles and illustrate your journey, connect to the Google Gemini API. Ensure your project has billing enabled for best performance.
+            </p>
+            <button 
+              onClick={onConnectKey}
+              className="flex items-center gap-3 px-6 py-3 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-purple-100 transition-all active:scale-95"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.32-2.12 4.52-1.2 1.2-3.04 2.16-5.72 2.16-4.6 0-8.36-3.72-8.36-8.32s3.76-8.32 8.36-8.32c2.48 0 4.28.96 5.64 2.24l2.32-2.32C18.44 2.08 15.68 1 12.48 1 6.12 1 1 6.12 1 12.48S6.12 24 12.48 24c3.44 0 6.08-1.12 8.12-3.24 2.08-2.08 2.72-5.04 2.72-7.36 0-.72-.04-1.4-.16-2.08H12.48z"/></svg>
+              Connect Google Account
+            </button>
+            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block text-[10px] text-gray-600 hover:text-purple-400 underline uppercase tracking-tighter">Billing Documentation</a>
+          </div>
+        )}
+
         {error && (
           <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-3xl text-red-400 text-sm font-medium leading-relaxed max-w-xl mx-auto">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-              <span className="font-black uppercase tracking-widest text-xs">Manifestation Error</span>
-            </div>
             {error}
           </div>
         )}
@@ -108,6 +131,44 @@ export const StartScreen: React.FC<StartScreenProps> = ({
             </button>
           </div>
         </form>
+
+        {/* Customization Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto pt-8">
+          {/* Voice Selector */}
+          <div className="space-y-3">
+            <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest block text-left ml-2">Guardian Voice</label>
+            <div className="flex gap-2">
+              <select 
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-sm text-gray-300 focus:outline-none focus:border-purple-500/50 appearance-none cursor-pointer"
+              >
+                {VOICES.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <button 
+                onClick={onPreviewVoice}
+                disabled={isSpeaking}
+                className="p-3 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-colors disabled:opacity-30"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Speed Slider */}
+          <div className="space-y-3">
+            <label className="text-[10px] text-gray-500 uppercase font-black tracking-widest block text-left ml-2">Speech Pace ({speechSpeed}x)</label>
+            <input 
+              type="range" 
+              min="0.5" 
+              max="2.0" 
+              step="0.1" 
+              value={speechSpeed} 
+              onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
+              className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            />
+          </div>
+        </div>
 
         {/* Destiny Presets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-12">

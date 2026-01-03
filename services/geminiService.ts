@@ -2,20 +2,14 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { Scene, Choice, CharacterState } from "../types";
 
-// Create a new instance right before each API call to ensure current API key usage
+// Always create a fresh instance to ensure the latest API key is used
 const getAI = () => {
-  // Safe check for process.env to prevent ReferenceError: process is not defined
-  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
-  
-  if (!apiKey || apiKey === 'undefined' || apiKey.length < 5) {
-    throw new Error("API_KEY_MISSING");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 const STORY_MODEL = 'gemini-3-flash-preview';
-// Use flash image by default as it doesn't require the mandatory AI Studio key selector
-const IMAGE_MODEL = 'gemini-2.5-flash-image'; 
+// Upgrade to Pro for high-quality visuals as requested
+const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 const CHARACTER_SCHEMA = {
@@ -125,16 +119,21 @@ export async function generateSceneImage(prompt: string): Promise<string> {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: IMAGE_MODEL,
-      contents: { parts: [{ text: `Masterpiece cinematic digital art, concept art style: ${prompt}` }] },
-      config: { 
-        imageConfig: { 
-          aspectRatio: "16:9"
-        } 
+      contents: {
+        parts: [{ text: `Masterpiece cinematic digital art, hyper-detailed concept art: ${prompt}` }]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9",
+          imageSize: "1K"
+        }
       }
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
     return `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1200/675`;
   } catch (err: any) {
@@ -153,7 +152,11 @@ export async function textToSpeech(text: string, voice: string = 'Charon', speed
     contents: [{ parts: [{ text: prompt }] }],
     config: {
       responseModalities: [Modality.AUDIO],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: voice },
+        },
+      },
     },
   });
   return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || '';
@@ -167,11 +170,18 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
     model: STORY_MODEL,
     contents: {
       parts: [
-        { inlineData: { data: audioBase64, mimeType: 'audio/pcm;rate=16000' } },
+        {
+          inlineData: {
+            data: audioBase64,
+            mimeType: 'audio/pcm;rate=16000',
+          },
+        },
         { text: prompt }
       ]
     },
-    config: { responseMimeType: "text/plain" }
+    config: {
+      responseMimeType: "text/plain"
+    }
   });
 
   return response.text?.trim() || '';
