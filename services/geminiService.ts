@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { Scene, Choice } from "../types";
+import { Scene, Choice, CharacterState } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
@@ -8,14 +8,24 @@ const STORY_MODEL = 'gemini-3-flash-preview';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
+const CHARACTER_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    health: { type: Type.NUMBER, description: "Change in health (e.g. -10 or +5). Default 0." },
+    sanity: { type: Type.NUMBER, description: "Change in sanity (e.g. -5). Default 0." },
+    experience: { type: Type.NUMBER, description: "Experience gained. Default 0." },
+    itemFound: { type: Type.STRING, description: "Name of item found, or null." },
+    statusAdded: { type: Type.STRING, description: "New status effect like 'Poisoned', or null." }
+  }
+};
+
 export async function generateInitialScene(theme: string): Promise<Scene> {
-  const prompt = `Start a new interactive adventure story based on the theme: "${theme}". 
-  Create a compelling opening scene. 
-  Include:
-  1. A title for the scene.
-  2. A vivid description (2-4 sentences).
-  3. 3 unique choices for the player.
-  4. A detailed image generation prompt that describes the visual atmosphere of this specific scene without using character names or plot text.`;
+  const prompt = `Start a new interactive adventure based on: "${theme}". 
+  Provide a vivid opening. Include:
+  1. Title & Description.
+  2. 3 Choices.
+  3. Image prompt.
+  4. Initial character stats if applicable.`;
 
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
@@ -39,7 +49,8 @@ export async function generateInitialScene(theme: string): Promise<Scene> {
               required: ["id", "text", "action"]
             }
           },
-          imagePrompt: { type: Type.STRING }
+          imagePrompt: { type: Type.STRING },
+          statChanges: CHARACTER_SCHEMA
         },
         required: ["title", "description", "choices", "imagePrompt"]
       }
@@ -50,19 +61,18 @@ export async function generateInitialScene(theme: string): Promise<Scene> {
   return { ...data, id: crypto.randomUUID() };
 }
 
-export async function generateNextScene(history: Scene[], choice: Choice): Promise<Scene> {
-  const context = history.map(s => `Scene: ${s.title}\nDescription: ${s.description}\nPlayer chose: ${choice.text}`).join('\n\n');
-  
-  const prompt = `Continue the story based on the player's last choice: "${choice.action}".
-  Current Context:
-  ${context}
+export async function generateNextScene(history: Scene[], input: Choice | string, character: CharacterState): Promise<Scene> {
+  const actionText = typeof input === 'string' ? input : input.action;
+  const contextHistory = history.slice(-5).map(s => `Scene: ${s.title}\nDesc: ${s.description}`).join('\n\n');
+  const invText = character.inventory.length > 0 ? character.inventory.join(", ") : "Empty Handed";
 
-  Generate the next step in the journey. Ensure continuity and stakes.
-  Include:
-  1. A title for the new scene.
-  2. A vivid description of what happens next (2-4 sentences).
-  3. 3-4 new choices for the player.
-  4. A detailed visual prompt for an image generator (no text/UI elements).`;
+  const prompt = `Continue story based on: "${actionText}".
+  Current State: HP ${character.health}/${character.maxHealth}, Sanity ${character.sanity}, Inventory: [${invText}].
+  Recent History:
+  ${contextHistory}
+
+  If the player finds an item, include it in 'itemFound'. If they get hurt, adjust stats.
+  Provide next title, description, and 3-4 choices. One choice should ideally use an item from their inventory if they have any.`;
 
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
@@ -86,7 +96,8 @@ export async function generateNextScene(history: Scene[], choice: Choice): Promi
               required: ["id", "text", "action"]
             }
           },
-          imagePrompt: { type: Type.STRING }
+          imagePrompt: { type: Type.STRING },
+          statChanges: CHARACTER_SCHEMA
         },
         required: ["title", "description", "choices", "imagePrompt"]
       }
@@ -101,16 +112,12 @@ export async function generateSceneImage(prompt: string): Promise<string> {
   try {
     const response = await ai.models.generateContent({
       model: IMAGE_MODEL,
-      contents: {
-        parts: [{ text: `Cinematic digital art, high fantasy style, detailed lighting: ${prompt}` }]
-      },
+      contents: { parts: [{ text: `Masterpiece cinematic digital art, concept art style: ${prompt}` }] },
       config: { imageConfig: { aspectRatio: "16:9" } }
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
+      if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
     }
     return `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1200/675`;
   } catch (err) {
@@ -118,25 +125,23 @@ export async function generateSceneImage(prompt: string): Promise<string> {
   }
 }
 
-export async function textToSpeech(text: string): Promise<string> {
+export async function textToSpeech(text: string, voice: string = 'Charon', speed: number = 1.0): Promise<string> {
+  const speedLabel = speed > 1.3 ? "quickly" : speed < 0.9 ? "slowly" : "normally";
+  const prompt = `Say ${speedLabel} and dramatically: ${text}`;
+  
   const response = await ai.models.generateContent({
     model: TTS_MODEL,
-    contents: [{ parts: [{ text: `Narrate this dramatically: ${text}` }] }],
+    contents: [{ parts: [{ text: prompt }] }],
     config: {
       responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } },
-      },
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
     },
   });
   return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || '';
 }
 
-export async function processVoiceInput(audioBase64: string, choices: Choice[]): Promise<string | null> {
-  const choiceTextList = choices.map(c => `"${c.text}" (ID: ${c.id})`).join(', ');
-  const prompt = `The user spoke an audio command. Based on what they said, which of these story choices did they pick?
-  Choices: ${choiceTextList}
-  If none match, return "null". Only return the choice ID.`;
+export async function transcribeAudio(audioBase64: string): Promise<string> {
+  const prompt = `Transcribe the user's speech from the audio into a short, clear sentence describing an action in a roleplaying game. Do not include extra commentary, just the transcription.`;
 
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
@@ -144,11 +149,8 @@ export async function processVoiceInput(audioBase64: string, choices: Choice[]):
       { inlineData: { data: audioBase64, mimeType: 'audio/pcm;rate=16000' } },
       { text: prompt }
     ],
-    config: {
-      responseMimeType: "text/plain"
-    }
+    config: { responseMimeType: "text/plain" }
   });
 
-  const result = response.text?.trim() || 'null';
-  return choices.find(c => c.id === result)?.id || null;
+  return response.text?.trim() || '';
 }

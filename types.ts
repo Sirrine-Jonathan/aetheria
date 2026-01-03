@@ -5,6 +5,15 @@ export interface Choice {
   action: string;
 }
 
+export interface CharacterState {
+  health: number;
+  maxHealth: number;
+  sanity: number;
+  experience: number;
+  inventory: string[];
+  statusEffects: string[];
+}
+
 export interface Scene {
   id: string;
   title: string;
@@ -13,6 +22,8 @@ export interface Scene {
   imagePrompt: string;
   imageUrl?: string;
   location?: string;
+  statChanges?: Partial<CharacterState>;
+  itemFound?: string;
 }
 
 export interface GameState {
@@ -21,6 +32,7 @@ export interface GameState {
   isGenerating: boolean;
   error: string | null;
   theme: string;
+  character: CharacterState;
 }
 
 export enum GameAction {

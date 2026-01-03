@@ -5,42 +5,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aetheria: AI Story Weaver</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=192&h=192&auto=format&fit=crop">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0a0a0a;
+            background-color: #050505;
             color: #e5e7eb;
             overflow-x: hidden;
+            margin: 0;
+            padding: 0;
         }
         .serif {
             font-family: 'Playfair Display', serif;
         }
         .glass-panel {
-            background: rgba(20, 20, 20, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .fade-in {
-            animation: fadeIn 0.8s ease-out forwards;
+            animation: fadeIn 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
         ::-webkit-scrollbar-track {
             background: transparent;
         }
         ::-webkit-scrollbar-thumb {
-            background: #333;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #444;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        /* Mobile-first adjustments for immersive content */
+        @media (max-width: 640px) {
+          .glass-panel {
+            border-radius: 20px;
+          }
         }
     </style>
 <script type="importmap">
@@ -56,5 +71,20 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Register service worker using a strictly origin-relative path to prevent domain mismatch errors
+                // in sandboxed preview environments.
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => {
+                        // In many cloud preview environments, Service Workers are blocked by sandbox CSP.
+                        // We log a warning instead of a hard error to prevent breaking the app.
+                        console.warn('Service Worker registration skipped or failed. This is often due to browser sandbox restrictions in preview environments.', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
