@@ -53,10 +53,10 @@ const App: React.FC = () => {
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Check for existing API key on mount
   useEffect(() => {
     const checkApiKey = async () => {
       // @ts-ignore
@@ -85,15 +85,10 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Persistence
   useEffect(() => {
     if (state.currentScene) {
-      try {
-        const { isGenerating, isSpeaking, isListening, error, isSidebarOpen, viewingHistoryIndex, ...toSave } = state;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      } catch (e) {
-        console.warn("Could not save to localStorage", e);
-      }
+      const { isGenerating, isSpeaking, isListening, error, isSidebarOpen, viewingHistoryIndex, ...toSave } = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     }
   }, [state.currentScene, state.history, state.character]);
 
@@ -105,16 +100,30 @@ const App: React.FC = () => {
         await window.aistudio.openSelectKey();
         setState(p => ({ ...p, hasApiKey: true, error: null }));
       } catch (e) {
-        setState(p => ({ ...p, error: "Failed to open account selector." }));
+        setState(p => ({ ...p, error: "Failed to connect reality." }));
       }
-    } else {
-      setState(p => ({ ...p, error: "Account selector is only available in supported browser environments." }));
     }
   };
 
+  const stopSpeaking = () => {
+    if (sourceRef.current) {
+      sourceRef.current.onended = null;
+      try {
+        sourceRef.current.stop();
+      } catch (e) {}
+      sourceRef.current = null;
+    }
+    setState(p => ({ ...p, isSpeaking: false }));
+  };
+
   const speakText = async (text: string) => {
-    if (!audioCtxRef.current) audioCtxRef.current = new AudioContext({ sampleRate: 24000 });
+    stopSpeaking();
+    
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
     const ctx = audioCtxRef.current;
+    if (ctx.state === 'suspended') await ctx.resume();
     
     setState(p => ({ ...p, isSpeaking: true }));
     try {
@@ -124,18 +133,21 @@ const App: React.FC = () => {
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(ctx.destination);
-        // FIX: Apply the speech speed to the playback rate
         source.playbackRate.value = state.speechSpeed;
         
+        sourceRef.current = source;
         source.onended = () => {
-          setState(p => ({ ...p, isSpeaking: false }));
-          if (state.autoListen) startListening(false);
+          if (sourceRef.current === source) {
+            setState(p => ({ ...p, isSpeaking: false }));
+            if (state.autoListen) startListening(false);
+          }
         };
         source.start();
       } else {
         setState(p => ({ ...p, isSpeaking: false }));
       }
     } catch (err) {
+      console.error("Audio reliability error:", err);
       setState(p => ({ ...p, isSpeaking: false }));
     }
   };
@@ -162,17 +174,18 @@ const App: React.FC = () => {
             setState(p => ({ ...p, isGenerating: false, customAction: result }));
           }
         } catch (err) {
-          setState(p => ({ ...p, isGenerating: false, error: "Transcription failed." }));
+          setState(p => ({ ...p, isGenerating: false, error: "Reception failed." }));
         }
-        
         stream.getTracks().forEach(t => t.stop());
       };
 
       mediaRecorder.start();
       setState(p => ({ ...p, isListening: true }));
-      setTimeout(() => { if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop(); }, 4000);
+      setTimeout(() => { 
+        if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop(); 
+      }, 5000);
     } catch (err) { 
-      console.error("Mic error", err); 
+      console.error("Mic access error:", err); 
     }
   };
 
@@ -182,7 +195,16 @@ const App: React.FC = () => {
       if (changes.health) char.health = Math.max(0, Math.min(char.maxHealth, char.health + changes.health));
       if (changes.sanity) char.sanity = Math.max(0, Math.min(100, char.sanity + changes.sanity));
       if (changes.experience) char.experience += changes.experience;
-      if (changes.itemFound) char.inventory = [...char.inventory, changes.itemFound];
+      
+      // Fixed: Filter out null, "null", "none" or empty item names
+      const validItemFound = changes.itemFound && 
+                             changes.itemFound.toLowerCase() !== 'null' && 
+                             changes.itemFound.toLowerCase() !== 'none';
+                             
+      if (validItemFound) {
+        char.inventory = [...char.inventory, changes.itemFound];
+      }
+      
       if (changes.statusAdded) char.statusEffects = [...char.statusEffects, changes.statusAdded];
       return { ...p, character: char };
     });
@@ -190,6 +212,7 @@ const App: React.FC = () => {
 
   const startGame = async (theme: string) => {
     if (!theme.trim()) return;
+    stopSpeaking();
     setState(prev => ({ ...prev, isGenerating: true, error: null, theme, character: INITIAL_CHARACTER, history: [], customAction: '', startTheme: theme }));
     try {
       const scene = await generateInitialScene(theme);
@@ -198,34 +221,48 @@ const App: React.FC = () => {
       if (scene.statChanges) updateCharacter(scene.statChanges);
       if (state.autoDictate) speakText(`${scene.title}. ${scene.description}`);
     } catch (err: any) { 
-      setState(p => ({ ...p, isGenerating: false, error: "Initialization failed. Check account connection if visuals are missing." })); 
+      setState(p => ({ ...p, isGenerating: false, error: "The chronicle failed to start. Try again." })); 
     }
   };
 
   const handleChoice = async (input: Choice | string) => {
     if (!state.currentScene) return;
+    stopSpeaking();
     const previousScene = state.currentScene;
+    
+    let nextCharacter = { ...state.character };
+    if (typeof input !== 'string' && input.usedItem) {
+      const itemIndex = nextCharacter.inventory.indexOf(input.usedItem);
+      if (itemIndex > -1) {
+        const newInventory = [...nextCharacter.inventory];
+        newInventory.splice(itemIndex, 1);
+        nextCharacter.inventory = newInventory;
+      }
+    }
+
     setState(prev => ({ 
       ...prev, 
       isGenerating: true, 
       history: [...prev.history, previousScene],
       error: null,
       viewingHistoryIndex: null,
-      customAction: ''
+      customAction: '',
+      character: nextCharacter
     }));
 
     try {
-      const nextScene = await generateNextScene([...state.history, previousScene], input, state.character);
+      const nextScene = await generateNextScene([...state.history, previousScene], input, nextCharacter);
       const imageUrl = await generateSceneImage(nextScene.imagePrompt);
       setState(p => ({ ...p, currentScene: { ...nextScene, imageUrl }, isGenerating: false }));
       if (nextScene.statChanges) updateCharacter(nextScene.statChanges);
       if (state.autoDictate) speakText(`${nextScene.title}. ${nextScene.description}`);
     } catch (err: any) { 
-      setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
+      setState(p => ({ ...p, isGenerating: false, error: "Path obstructed. Resubmit your choice." })); 
     }
   };
 
   const resetGame = () => {
+    stopSpeaking();
     localStorage.removeItem(STORAGE_KEY);
     setState(p => ({ ...p, currentScene: null, history: [], theme: '', error: null, isSidebarOpen: false, character: INITIAL_CHARACTER, viewingHistoryIndex: null, customAction: '', startTheme: '' }));
   };
@@ -244,7 +281,7 @@ const App: React.FC = () => {
           setSelectedVoice={(val) => setState(p => ({ ...p, selectedVoice: val }))}
           speechSpeed={state.speechSpeed}
           setSpeechSpeed={(val) => setState(p => ({ ...p, speechSpeed: val }))}
-          onPreviewVoice={() => speakText("Greetings adventurer. I shall be your guide.")}
+          onPreviewVoice={() => speakText("I await your command.")}
           isSpeaking={state.isSpeaking}
           hasApiKey={state.hasApiKey}
           onConnectKey={handleOpenKeySelector}
@@ -252,7 +289,7 @@ const App: React.FC = () => {
         />
       ) : (
         <>
-          {state.isSidebarOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setState(p => ({ ...p, isSidebarOpen: false }))} />}
+          {state.isSidebarOpen && <div className="fixed inset-0 bg-black/85 backdrop-blur-lg z-40 md:hidden" onClick={() => setState(p => ({ ...p, isSidebarOpen: false }))} />}
           <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 md:relative md:translate-x-0 ${state.isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
             <Sidebar 
               history={state.history} 
@@ -270,11 +307,11 @@ const App: React.FC = () => {
           </div>
           <main className="flex-1 relative overflow-y-auto w-full">
             {state.isGenerating && <LoadingOverlay />}
-            <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#0a0a0a] sticky top-0 z-30">
-              <button onClick={() => setState(p => ({ ...p, isSidebarOpen: true }))} className="p-2 text-gray-400">
+            <div className="md:hidden flex items-center justify-between p-4 border-b border-white/20 bg-black sticky top-0 z-30">
+              <button onClick={() => setState(p => ({ ...p, isSidebarOpen: true }))} className="p-2 text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
               </button>
-              <h1 className="serif text-xl font-bold text-purple-400">Aetheria</h1>
+              <h1 className="serif text-xl font-bold text-white tracking-widest uppercase">Aetheria</h1>
               <div className="w-10" />
             </div>
             { (state.viewingHistoryIndex !== null ? state.history[state.viewingHistoryIndex] : state.currentScene) && (

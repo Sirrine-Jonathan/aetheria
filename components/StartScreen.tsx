@@ -120,7 +120,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                 value={startTheme}
                 onChange={(e) => setStartTheme(e.target.value)}
                 disabled={isLoading || isListening}
-                className="w-full bg-black/80 backdrop-blur-2xl border border-white/10 rounded-3xl px-10 py-7 md:py-9 text-xl md:text-3xl focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-gray-800 pr-24 shadow-2xl text-white font-light tracking-tight"
+                className="w-full bg-black/80 backdrop-blur-2xl border border-white/10 rounded-3xl px-10 py-7 md:py-9 text-xl md:text-3xl focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-white/40 pr-24 shadow-2xl text-white font-light tracking-tight"
               />
               <button 
                 type="button"

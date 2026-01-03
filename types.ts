@@ -3,6 +3,7 @@ export interface Choice {
   id: string;
   text: string;
   action: string;
+  usedItem?: string; // The name of the item from inventory consumed by this choice
 }
 
 export interface CharacterState {

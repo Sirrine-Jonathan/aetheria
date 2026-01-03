@@ -32,24 +32,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'status' | 'history'>('status');
 
   return (
-    <aside className="w-[300px] md:w-80 h-full border-r border-white/10 bg-[#0a0a0a] flex flex-col shadow-2xl z-50">
+    <aside className="w-[300px] md:w-80 h-full border-r border-white/10 bg-[#050505] flex flex-col shadow-2xl z-50">
       {/* Header */}
-      <div className="p-6 border-b border-white/10 flex justify-between items-center">
-        <h2 className="serif text-2xl font-bold text-purple-400 tracking-tight">Aetheria</h2>
-        <button onClick={onCloseMobile} className="md:hidden text-gray-500">✕</button>
+      <div className="p-8 border-b border-white/10 flex justify-between items-center bg-[#0a0a0a]">
+        <h2 className="serif text-3xl font-bold text-purple-400 tracking-tight">Aetheria</h2>
+        <button onClick={onCloseMobile} className="md:hidden text-white text-2xl">✕</button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-white/10">
+      <div className="flex border-b border-white/10 bg-[#0a0a0a]">
         <button 
           onClick={() => setActiveTab('status')}
-          className={`flex-1 py-3 text-[10px] uppercase tracking-widest font-bold transition-colors ${activeTab === 'status' ? 'text-purple-400 bg-white/5 border-b-2 border-purple-500' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex-1 py-4 text-[11px] uppercase tracking-widest font-black transition-colors ${activeTab === 'status' ? 'text-purple-400 border-b-2 border-purple-500 bg-white/5' : 'text-gray-500'}`}
         >
           Adventurer
         </button>
         <button 
           onClick={() => setActiveTab('history')}
-          className={`flex-1 py-3 text-[10px] uppercase tracking-widest font-bold transition-colors ${activeTab === 'history' ? 'text-purple-400 bg-white/5 border-b-2 border-purple-500' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex-1 py-4 text-[11px] uppercase tracking-widest font-black transition-colors ${activeTab === 'history' ? 'text-purple-400 border-b-2 border-purple-500 bg-white/5' : 'text-gray-500'}`}
         >
           Chronicle
         </button>
@@ -58,48 +58,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {activeTab === 'status' ? (
-          <div className="p-6 space-y-8 animate-fadeIn">
-            {/* Health */}
-            <section className="space-y-3">
-              <div className="flex justify-between text-[10px] uppercase font-bold tracking-tighter text-gray-400">
+          <div className="p-8 space-y-10 animate-fadeIn">
+            {/* Vitality */}
+            <section className="space-y-4">
+              <div className="flex justify-between text-[11px] uppercase font-black tracking-widest text-gray-300">
                 <span>Vitality</span>
-                <span>{character.health}/{character.maxHealth}</span>
+                <span className="text-white">{character.health}/{character.maxHealth}</span>
               </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
                 <div 
-                  className="h-full bg-gradient-to-r from-red-600 to-rose-400 transition-all duration-1000"
+                  className="h-full bg-gradient-to-r from-red-600 to-rose-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(220,38,38,0.5)]"
                   style={{ width: `${(character.health / character.maxHealth) * 100}%` }}
                 />
               </div>
             </section>
 
             {/* Sanity */}
-            <section className="space-y-3">
-              <div className="flex justify-between text-[10px] uppercase font-bold tracking-tighter text-gray-400">
+            <section className="space-y-4">
+              <div className="flex justify-between text-[11px] uppercase font-black tracking-widest text-gray-300">
                 <span>Sanity</span>
-                <span>{character.sanity}%</span>
+                <span className="text-white">{character.sanity}%</span>
               </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-1000"
+                  className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.5)]"
                   style={{ width: `${character.sanity}%` }}
                 />
               </div>
             </section>
 
             {/* Inventory */}
-            <section className="space-y-4">
-              <h3 className="text-[10px] uppercase font-bold tracking-widest text-gray-500">Backpack</h3>
+            <section className="space-y-5">
+              <h3 className="text-[11px] uppercase font-black tracking-widest text-gray-500">Inventory</h3>
               {character.inventory.length === 0 ? (
-                <div className="text-center py-6 border border-dashed border-white/10 rounded-xl">
-                  <span className="text-xs text-gray-600 italic">Empty...</span>
+                <div className="text-center py-10 border-2 border-dashed border-white/5 rounded-3xl">
+                  <span className="text-sm text-gray-600 font-medium">Empty Backpack</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2">
+                <div className="space-y-3">
                   {character.inventory.map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl group hover:border-purple-500/50 transition-all">
-                      <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
-                      <span className="text-xs text-gray-300 font-medium">{item}</span>
+                    <div key={i} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl group transition-all hover:bg-white/[0.08]">
+                      <div className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+                      <span className="text-sm text-gray-100 font-bold">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -107,18 +107,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </section>
           </div>
         ) : (
-          <div className="p-4 space-y-4 animate-fadeIn">
+          <div className="p-6 space-y-4 animate-fadeIn">
             <button 
               onClick={() => onSelectHistory(null)}
-              className={`w-full p-4 rounded-xl border transition-all text-left group ${viewingIndex === null ? 'bg-purple-900/20 border-purple-500/50' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+              className={`w-full p-5 rounded-2xl border transition-all text-left ${viewingIndex === null ? 'bg-purple-600/20 border-purple-500 text-white' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'}`}
             >
-              <span className="text-[9px] text-purple-500 font-black uppercase block mb-1">Active Scene</span>
-              <h3 className="text-xs font-bold text-gray-200 truncate">{currentScene?.title}</h3>
+              <span className="text-[10px] font-black uppercase block mb-1 opacity-60">Active Journey</span>
+              <h3 className="text-sm font-bold truncate">{currentScene?.title}</h3>
             </button>
-
-            {history.length > 0 && (
-              <div className="h-px bg-white/5 my-2" />
-            )}
 
             {history.slice().reverse().map((step, revIdx) => {
               const actualIdx = history.length - 1 - revIdx;
@@ -126,11 +122,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button 
                   key={step.id} 
                   onClick={() => onSelectHistory(actualIdx)}
-                  className={`w-full p-4 rounded-xl border transition-all text-left group ${viewingIndex === actualIdx ? 'bg-amber-900/20 border-amber-500/50' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                  className={`w-full p-5 rounded-2xl border transition-all text-left ${viewingIndex === actualIdx ? 'bg-amber-600/20 border-amber-500 text-white' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'}`}
                 >
-                  <span className="text-[9px] text-gray-500 font-black uppercase block mb-1 group-hover:text-amber-500 transition-colors">Log {actualIdx + 1}</span>
-                  <h3 className="text-xs font-bold text-gray-200 truncate">{step.title}</h3>
-                  <p className="text-[10px] text-gray-500 line-clamp-1 mt-1 leading-relaxed italic">"{step.description.substring(0, 40)}..."</p>
+                  <span className="text-[10px] font-black uppercase block mb-1 opacity-60">Log {actualIdx + 1}</span>
+                  <h3 className="text-sm font-bold truncate">{step.title}</h3>
                 </button>
               );
             })}
@@ -138,32 +133,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Settings / Controls */}
-      <div className="p-6 space-y-4 border-t border-white/10 bg-black/40">
+      <div className="p-8 space-y-5 border-t border-white/10 bg-[#0a0a0a]">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Dictate</span>
-          <button onClick={onToggleDictate} className={`w-10 h-5 rounded-full transition-all relative ${autoDictate ? 'bg-purple-600' : 'bg-gray-700'}`}>
-            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${autoDictate ? 'left-6' : 'left-1'}`} />
+          <span className="text-[11px] text-gray-300 uppercase tracking-widest font-black">Narration</span>
+          <button onClick={onToggleDictate} className={`w-12 h-6 rounded-full transition-all relative p-1 ${autoDictate ? 'bg-purple-600' : 'bg-gray-800'}`}>
+            <div className={`w-4 h-4 bg-white rounded-full transition-all ${autoDictate ? 'translate-x-6' : 'translate-x-0'}`} />
           </button>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Listen</span>
-          <button onClick={onToggleListen} className={`w-10 h-5 rounded-full transition-all relative ${autoListen ? 'bg-indigo-600' : 'bg-gray-700'}`}>
-            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${autoListen ? 'left-6' : 'left-1'}`} />
+          <span className="text-[11px] text-gray-300 uppercase tracking-widest font-black">Speech-to-Action</span>
+          <button onClick={onToggleListen} className={`w-12 h-6 rounded-full transition-all relative p-1 ${autoListen ? 'bg-indigo-600' : 'bg-gray-800'}`}>
+            <div className={`w-4 h-4 bg-white rounded-full transition-all ${autoListen ? 'translate-x-6' : 'translate-x-0'}`} />
           </button>
         </div>
-        <button onClick={onReset} className="w-full py-2 text-[10px] uppercase font-bold tracking-[0.2em] text-gray-500 hover:text-red-400 border border-white/5 rounded-lg hover:bg-red-950/20 transition-all mt-2">
-          End Chronicle
+        <button onClick={onReset} className="w-full py-4 text-[11px] uppercase font-black tracking-[0.2em] text-gray-500 hover:text-red-400 transition-colors mt-4">
+          Sever Connection
         </button>
       </div>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </aside>
   );
 };

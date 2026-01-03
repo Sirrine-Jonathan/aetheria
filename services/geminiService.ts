@@ -23,19 +23,27 @@ const CHARACTER_SCHEMA = {
   }
 };
 
+const STORY_SYSTEM_INSTRUCTION = `You are a professional RPG game master. 
+Your storytelling is direct, punchy, and grounded. 
+Avoid flowery metaphors, purple prose, or whimsical commentary. 
+Focus on cold facts, immediate environment, and visceral sensations. 
+Limit each scene description to exactly 2-3 impact-focused sentences. 
+
+CRITICAL VISUAL RULE:
+Your 'imagePrompt' must be a LITERAL, detailed description of the scene's current visual state. 
+Focus on: Physical objects present, specific lighting conditions, the player's immediate surroundings, and the mood. 
+Do not use abstract concepts. If the player used an item (e.g. a torch), the image prompt MUST include that item.`;
+
 export async function generateInitialScene(theme: string): Promise<Scene> {
   const ai = getAI();
-  const prompt = `Start a new interactive adventure based on: "${theme}". 
-  Provide a vivid opening. Include:
-  1. Title & Description.
-  2. 3 Choices.
-  3. Image prompt.
-  4. Initial character stats if applicable.`;
+  const prompt = `Start a gritty chronicle based on the theme: "${theme}". 
+  Provide the first scene. Ensure the imagePrompt is a hyper-literal description of the setting.`;
 
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
     contents: prompt,
     config: {
+      systemInstruction: STORY_SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -49,7 +57,8 @@ export async function generateInitialScene(theme: string): Promise<Scene> {
               properties: {
                 id: { type: Type.STRING },
                 text: { type: Type.STRING },
-                action: { type: Type.STRING }
+                action: { type: Type.STRING },
+                usedItem: { type: Type.STRING }
               },
               required: ["id", "text", "action"]
             }
@@ -69,21 +78,23 @@ export async function generateInitialScene(theme: string): Promise<Scene> {
 export async function generateNextScene(history: Scene[], input: Choice | string, character: CharacterState): Promise<Scene> {
   const ai = getAI();
   const actionText = typeof input === 'string' ? input : input.action;
-  const contextHistory = history.slice(-5).map(s => `Scene: ${s.title}\nDesc: ${s.description}`).join('\n\n');
-  const invText = character.inventory.length > 0 ? character.inventory.join(", ") : "Empty Handed";
+  const contextHistory = history.slice(-3).map(s => `Scene: ${s.title}\nDesc: ${s.description}`).join('\n\n');
+  const invText = character.inventory.length > 0 ? character.inventory.join(", ") : "None";
 
-  const prompt = `Continue story based on: "${actionText}".
-  Current State: HP ${character.health}/${character.maxHealth}, Sanity ${character.sanity}, Inventory: [${invText}].
-  Recent History:
+  const prompt = `Current Player Action: "${actionText}".
+  Inventory: [${invText}].
+  Recent Events:
   ${contextHistory}
 
-  If the player finds an item, include it in 'itemFound'. If they get hurt, adjust stats.
-  Provide next title, description, and 3-4 choices. One choice should ideally use an item from their inventory if they have any.`;
+  Generate the resulting scene. 
+  If an item was used, describe its physical effect. 
+  The 'imagePrompt' must explicitly reflect the consequences of "${actionText}".`;
 
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
     contents: prompt,
     config: {
+      systemInstruction: STORY_SYSTEM_INSTRUCTION,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -97,7 +108,8 @@ export async function generateNextScene(history: Scene[], input: Choice | string
               properties: {
                 id: { type: Type.STRING },
                 text: { type: Type.STRING },
-                action: { type: Type.STRING }
+                action: { type: Type.STRING },
+                usedItem: { type: Type.STRING }
               },
               required: ["id", "text", "action"]
             }
@@ -115,10 +127,9 @@ export async function generateNextScene(history: Scene[], input: Choice | string
 }
 
 export async function generateSceneImage(prompt: string): Promise<string> {
-  const fullPrompt = `Masterpiece cinematic digital art, hyper-detailed concept art: ${prompt}`;
+  const fullPrompt = `Grounded cinematic photography, wide-angle lens, sharp focus, literal representation: ${prompt}`;
   const ai = getAI();
   
-  // Try Pro model first
   try {
     const response = await ai.models.generateContent({
       model: PRO_IMAGE_MODEL,
@@ -131,38 +142,27 @@ export async function generateSceneImage(prompt: string): Promise<string> {
     }
   } catch (err: any) {
     const isQuotaError = err.message?.includes("429") || err.message?.includes("Quota exceeded");
-    
     if (isQuotaError) {
-      console.warn("Pro Image model quota hit, falling back to Flash model...");
       try {
         const fallbackResponse = await ai.models.generateContent({
           model: FLASH_IMAGE_MODEL,
           contents: { parts: [{ text: fullPrompt }] }
         });
-        
         for (const part of fallbackResponse.candidates?.[0]?.content?.parts || []) {
           if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
         }
-      } catch (fallbackErr) {
-        console.error("Flash image fallback failed", fallbackErr);
-      }
-    } else {
-      console.error("Image generation error:", err);
+      } catch (fallbackErr) {}
     }
   }
-
-  // Final fallback to a placeholder if both models fail
   return `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1200/675`;
 }
 
 export async function textToSpeech(text: string, voice: string = 'Charon', speed: number = 1.0): Promise<string> {
   const ai = getAI();
-  const speedLabel = speed > 1.3 ? "quickly" : speed < 0.9 ? "slowly" : "normally";
-  const prompt = `Say ${speedLabel} and dramatically: ${text}`;
-  
+  // Simplified prompt for the TTS model to avoid meta-commentary
   const response = await ai.models.generateContent({
     model: TTS_MODEL,
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ parts: [{ text: text }] }],
     config: {
       responseModalities: [Modality.AUDIO],
       speechConfig: {
@@ -177,25 +177,14 @@ export async function textToSpeech(text: string, voice: string = 'Charon', speed
 
 export async function transcribeAudio(audioBase64: string): Promise<string> {
   const ai = getAI();
-  const prompt = `Transcribe the user's speech from the audio into a short, clear sentence describing an action in a roleplaying game. Do not include extra commentary, just the transcription.`;
-
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
     contents: {
       parts: [
-        {
-          inlineData: {
-            data: audioBase64,
-            mimeType: 'audio/pcm;rate=16000',
-          },
-        },
-        { text: prompt }
+        { inlineData: { data: audioBase64, mimeType: 'audio/pcm;rate=16000' } },
+        { text: "Transcribe the spoken RPG action clearly. Concise text only." }
       ]
-    },
-    config: {
-      responseMimeType: "text/plain"
     }
   });
-
   return response.text?.trim() || '';
 }

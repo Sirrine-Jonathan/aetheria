@@ -3,6 +3,7 @@ const CACHE_NAME = 'aetheria-v2';
 const ASSETS = [
   './',
   './index.html',
+  './index.tsx',
   './manifest.json',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap'
@@ -42,33 +43,7 @@ self.addEventListener('fetch', (event) => {
   const isExternal = EXTERNAL_ORIGINS.some(origin => url.hostname.includes(origin));
   const isSameOrigin = url.origin === self.location.origin;
 
-  if (!isSameOrigin && !isExternal) {
-    // For same-origin requests not explicitly in ASSETS, check if they are build assets
-    if (url.pathname.startsWith('/assets/')) {
-        event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                return fetch(event.request).then((response) => {
-                    if (!response || response.status !== 200 || response.type !== 'basic') {
-                        return response;
-                    }
-                    const responseToCache = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
-                    });
-                    return response;
-                }).catch(() => {
-                    // If fetching fails and not in cache, respond with a generic 404 or offline page
-                    return new Response('Offline asset unavailable', { status: 404 });
-                });
-            })
-        );
-        return;
-    }
-    return; // Don't handle other non-same-origin, non-external requests
-  }
+  if (!isSameOrigin && !isExternal) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {

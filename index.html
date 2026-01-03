@@ -6,12 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aetheria: AI Story Weaver</title>
     
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="Aetheria: AI Story Weaver">
+    <meta name="description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://aetheria.game/">
+    <meta property="og:title" content="Aetheria: AI Story Weaver">
+    <meta property="og:description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&h=630&auto=format&fit=crop">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://aetheria.game/">
+    <meta property="twitter:title" content="Aetheria: AI Story Weaver">
+    <meta property="twitter:description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
+    <meta property="twitter:image" content="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&h=630&auto=format&fit=crop">
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#8b5cf6">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Aetheria">
-    <meta name="description" content="An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.">
     
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=192&h=192&auto=format&fit=crop">
@@ -23,7 +40,7 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #050505;
-            color: #e5e7eb;
+            color: #ffffff;
             overflow-x: hidden;
             margin: 0;
             padding: 0;
@@ -32,9 +49,9 @@
             font-family: 'Playfair Display', serif;
         }
         .glass-panel {
-            background: rgba(10, 10, 10, 0.8);
+            background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
         .fade-in {
             animation: fadeIn 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
@@ -50,16 +67,11 @@
             background: transparent;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        @media (max-width: 640px) {
-          .glass-panel {
-            border-radius: 20px;
-          }
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 <script type="importmap">
