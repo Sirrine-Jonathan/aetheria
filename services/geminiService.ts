@@ -7,14 +7,15 @@ const getAI = () => {
   // Safe check for process.env to prevent ReferenceError: process is not defined
   const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
   
-  if (!apiKey || apiKey === 'undefined') {
+  if (!apiKey || apiKey === 'undefined' || apiKey.length < 5) {
     throw new Error("API_KEY_MISSING");
   }
   return new GoogleGenAI({ apiKey });
 };
 
 const STORY_MODEL = 'gemini-3-flash-preview';
-const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+// Use flash image by default as it doesn't require the mandatory AI Studio key selector
+const IMAGE_MODEL = 'gemini-2.5-flash-image'; 
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 const CHARACTER_SCHEMA = {
@@ -127,8 +128,7 @@ export async function generateSceneImage(prompt: string): Promise<string> {
       contents: { parts: [{ text: `Masterpiece cinematic digital art, concept art style: ${prompt}` }] },
       config: { 
         imageConfig: { 
-          aspectRatio: "16:9",
-          imageSize: "1K" 
+          aspectRatio: "16:9"
         } 
       }
     });

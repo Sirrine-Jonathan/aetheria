@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GameState, Scene, Choice, CharacterState } from './types';
 import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio } from './services/geminiService';
@@ -60,22 +61,30 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkKeyStatus = async () => {
       let hasKey = false;
-      const isAIStudio = !!window.aistudio;
+      // @ts-ignore
+      const isAIStudio = !!(window.aistudio);
 
       if (isAIStudio) {
         try {
+          // @ts-ignore
           hasKey = await window.aistudio.hasSelectedApiKey();
         } catch (e) {
           console.warn("Key check failed", e);
         }
       }
 
-      // Check process.env (Standard deployments)
+      // Check environment variable (Standard deployments / Netlify)
       if (!hasKey) {
         try {
+          // Robust check for process.env.API_KEY
+          const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+          
+          // Also check for common injection points if process is not globally available
           // @ts-ignore
-          const envKey = typeof process !== 'undefined' ? process.env.API_KEY : undefined;
-          if (envKey && envKey !== 'undefined') {
+          const winKey = window.__API_KEY__ || window.ENV?.API_KEY;
+          const finalKey = apiKey || winKey;
+
+          if (finalKey && finalKey !== 'undefined' && finalKey.length > 5) {
             hasKey = true;
           }
         } catch (e) {}
@@ -129,8 +138,10 @@ const App: React.FC = () => {
   }, [state.currentScene, state.history, state.character]);
 
   const handleOpenKeySelector = async () => {
+    // @ts-ignore
     if (window.aistudio) {
       try {
+        // @ts-ignore
         await window.aistudio.openSelectKey();
         setState(p => ({ ...p, hasApiKey: true, error: null }));
       } catch (e) {
@@ -223,9 +234,10 @@ const App: React.FC = () => {
     } catch (err: any) { 
       if (err.message?.includes("Requested entity was not found")) {
         setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key connection lost. Please reconnect." }));
+        // @ts-ignore
         if (window.aistudio) window.aistudio.openSelectKey();
       } else {
-        setState(p => ({ ...p, isGenerating: false, error: "Initialization failed. Please ensure an API Key is configured." })); 
+        setState(p => ({ ...p, isGenerating: false, error: "Initialization failed. Please ensure an API Key is configured in your project settings." })); 
       }
     }
   };
@@ -251,6 +263,7 @@ const App: React.FC = () => {
     } catch (err: any) { 
       if (err.message?.includes("Requested entity was not found")) {
         setState(p => ({ ...p, isGenerating: false, hasApiKey: false, error: "API Key lost." }));
+        // @ts-ignore
         if (window.aistudio) window.aistudio.openSelectKey();
       } else {
         setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
