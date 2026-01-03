@@ -8,8 +8,8 @@ const getAI = () => {
 };
 
 const STORY_MODEL = 'gemini-3-flash-preview';
-// Upgrade to Pro for high-quality visuals as requested
-const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+const PRO_IMAGE_MODEL = 'gemini-3-pro-image-preview';
+const FLASH_IMAGE_MODEL = 'gemini-2.5-flash-image';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 const CHARACTER_SCHEMA = {
@@ -115,31 +115,44 @@ export async function generateNextScene(history: Scene[], input: Choice | string
 }
 
 export async function generateSceneImage(prompt: string): Promise<string> {
+  const fullPrompt = `Masterpiece cinematic digital art, hyper-detailed concept art: ${prompt}`;
+  const ai = getAI();
+  
+  // Try Pro model first
   try {
-    const ai = getAI();
     const response = await ai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: {
-        parts: [{ text: `Masterpiece cinematic digital art, hyper-detailed concept art: ${prompt}` }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "16:9",
-          imageSize: "1K"
-        }
-      }
+      model: PRO_IMAGE_MODEL,
+      contents: { parts: [{ text: fullPrompt }] },
+      config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } }
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
+      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-    return `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1200/675`;
   } catch (err: any) {
-    console.error("Image generation error:", err);
-    throw err;
+    const isQuotaError = err.message?.includes("429") || err.message?.includes("Quota exceeded");
+    
+    if (isQuotaError) {
+      console.warn("Pro Image model quota hit, falling back to Flash model...");
+      try {
+        const fallbackResponse = await ai.models.generateContent({
+          model: FLASH_IMAGE_MODEL,
+          contents: { parts: [{ text: fullPrompt }] }
+        });
+        
+        for (const part of fallbackResponse.candidates?.[0]?.content?.parts || []) {
+          if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+        }
+      } catch (fallbackErr) {
+        console.error("Flash image fallback failed", fallbackErr);
+      }
+    } else {
+      console.error("Image generation error:", err);
+    }
   }
+
+  // Final fallback to a placeholder if both models fail
+  return `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1200/675`;
 }
 
 export async function textToSpeech(text: string, voice: string = 'Charon', speed: number = 1.0): Promise<string> {

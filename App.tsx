@@ -109,7 +109,7 @@ const App: React.FC = () => {
         setState(p => ({ ...p, error: "Failed to open account selector." }));
       }
     } else {
-      setState(p => ({ ...p, error: "Account selector is only available in supported AI Studio environments." }));
+      setState(p => ({ ...p, error: "Account selector is only available in supported browser environments." }));
     }
   };
 
@@ -196,12 +196,7 @@ const App: React.FC = () => {
       if (scene.statChanges) updateCharacter(scene.statChanges);
       if (state.autoDictate) speakText(`${scene.title}. ${scene.description}`);
     } catch (err: any) { 
-      let errMsg = "Initialization failed.";
-      if (err.message?.includes("Requested entity was not found") || err.message?.includes("Quota exceeded")) {
-        errMsg = "Account/Quota issue. Please connect a billed Google Account for high-quality visuals.";
-        setState(p => ({ ...p, hasApiKey: false }));
-      }
-      setState(p => ({ ...p, isGenerating: false, error: errMsg })); 
+      setState(p => ({ ...p, isGenerating: false, error: "Initialization failed. Check account connection if visuals are missing." })); 
     }
   };
 
@@ -224,12 +219,7 @@ const App: React.FC = () => {
       if (nextScene.statChanges) updateCharacter(nextScene.statChanges);
       if (state.autoDictate) speakText(`${nextScene.title}. ${nextScene.description}`);
     } catch (err: any) { 
-      let errMsg = "The path is blocked.";
-      if (err.message?.includes("Requested entity was not found") || err.message?.includes("Quota exceeded")) {
-        errMsg = "Account/Quota issue. Please reconnect a billed Google Account.";
-        setState(p => ({ ...p, hasApiKey: false }));
-      }
-      setState(p => ({ ...p, isGenerating: false, error: errMsg })); 
+      setState(p => ({ ...p, isGenerating: false, error: "The path is blocked." })); 
     }
   };
 
