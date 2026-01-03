@@ -1,0 +1,7 @@
+{
+  "name": "Aetheria: AI Story Weaver",
+  "description": "An interactive, AI-powered adventure game where every choice you make is illustrated by real-time generative imagery.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
