@@ -15,6 +15,14 @@ export interface CharacterState {
   statusEffects: string[];
 }
 
+export type StoryStyle = "Standard" | "Noir" | "Fantasy" | "Sci-Fi" | "Horror" | "Comedic" | "Dramatic";
+export type StoryLength = "Short" | "Medium" | "Long";
+
+export interface StoryConfig {
+  style: StoryStyle;
+  length: StoryLength;
+}
+
 export interface Scene {
   id: string;
   title: string;
@@ -34,6 +42,7 @@ export interface GameState {
   error: string | null;
   theme: string;
   character: CharacterState;
+  storyConfig: StoryConfig;
 }
 
 export enum GameAction {

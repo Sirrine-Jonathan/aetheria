@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { StoryConfig, StoryStyle, StoryLength } from '../types';
 
 interface StartScreenProps {
   onStart: (theme: string) => void;
@@ -12,6 +13,8 @@ interface StartScreenProps {
   setSelectedVoice: (val: string) => void;
   speechSpeed: number;
   setSpeechSpeed: (val: number) => void;
+  storyConfig: StoryConfig;
+  setStoryConfig: (val: StoryConfig) => void;
   onPreviewVoice: () => void;
   isSpeaking: boolean;
   hasApiKey: boolean;
@@ -35,9 +38,17 @@ const VOICE_OPTIONS = [
   { name: 'Zephyr', desc: 'Smooth & Ethereal', color: 'border-cyan-500/30' }
 ];
 
+const STYLES: StoryStyle[] = ["Standard", "Noir", "Fantasy", "Sci-Fi", "Horror", "Comedic", "Dramatic"];
+const LENGTHS: { label: StoryLength, desc: string }[] = [
+  { label: "Short", desc: "Brief & Punchy" },
+  { label: "Medium", desc: "Balanced Detail" },
+  { label: "Long", desc: "Rich & Immersive" }
+];
+
 export const StartScreen: React.FC<StartScreenProps> = ({ 
   onStart, isLoading, isListening, onMicClick, startTheme, setStartTheme, 
   selectedVoice, setSelectedVoice, speechSpeed, setSpeechSpeed, 
+  storyConfig, setStoryConfig,
   onPreviewVoice, isSpeaking, hasApiKey, onConnectKey, error
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
@@ -152,8 +163,45 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         </form>
 
-        {/* Narrative Customization (Voice & Speed) */}
+        {/* Narrative Customization (Voice & Speed & Story Config) */}
         <div className="max-w-4xl mx-auto space-y-10 pt-10 border-t border-white/5">
+          
+          {/* Story Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+               <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-left px-2">Narrative Style</h3>
+               <div className="flex flex-wrap gap-2">
+                 {STYLES.map(style => (
+                   <button
+                    key={style}
+                    onClick={() => setStoryConfig({ ...storyConfig, style })}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${storyConfig.style === style ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'}`}
+                   >
+                     {style}
+                   </button>
+                 ))}
+               </div>
+            </div>
+
+            <div className="space-y-4">
+               <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-left px-2">Scene Length</h3>
+               <div className="grid grid-cols-3 gap-2">
+                 {LENGTHS.map(len => (
+                   <button
+                    key={len.label}
+                    onClick={() => setStoryConfig({ ...storyConfig, length: len.label })}
+                    className={`p-3 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 ${storyConfig.length === len.label ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'}`}
+                   >
+                     <span className="text-xs font-bold uppercase tracking-wider">{len.label}</span>
+                     <span className="text-[8px] opacity-60">{len.desc}</span>
+                   </button>
+                 ))}
+               </div>
+            </div>
+          </div>
+
+          <div className="h-px bg-white/5 w-full" />
+
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Select Your Guardian Voice</h3>

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { Scene, Choice, CharacterState } from "../types";
+import { Scene, Choice, CharacterState, StoryConfig } from "../types";
 
 // Always create a fresh instance to ensure the latest API key is used
 const getAI = () => {
@@ -23,27 +23,40 @@ const CHARACTER_SCHEMA = {
   }
 };
 
-const STORY_SYSTEM_INSTRUCTION = `You are a professional RPG game master. 
-Your storytelling is direct, punchy, and grounded. 
-Avoid flowery metaphors, purple prose, or whimsical commentary. 
-Focus on cold facts, immediate environment, and visceral sensations. 
-Limit each scene description to exactly 2-3 impact-focused sentences. 
+const getSystemInstruction = (config: StoryConfig) => {
+  let styleInstruction = "Your storytelling is direct, punchy, and grounded. Avoid flowery metaphors.";
+  if (config.style === "Noir") styleInstruction = "Your storytelling is cynical, atmospheric, and shadowy. Use metaphors of decay and corruption.";
+  if (config.style === "Fantasy") styleInstruction = "Your storytelling is epic, magical, and old-world. Use archaic terms and grand descriptions.";
+  if (config.style === "Sci-Fi") styleInstruction = "Your storytelling is technical, sterile, and futuristic. Focus on technology and cosmic scale.";
+  if (config.style === "Horror") styleInstruction = "Your storytelling is unsettling, visceral, and suspenseful. Focus on fear and sensory details of dread.";
+  if (config.style === "Comedic") styleInstruction = "Your storytelling is humorous, absurd, and lighthearted. Highlight the irony and ridiculousness of situations.";
+  if (config.style === "Dramatic") styleInstruction = "Your storytelling is emotional, intense, and character-driven. Focus on internal conflict and high stakes.";
+
+  let lengthInstruction = "Limit each scene description to exactly 2-3 impact-focused sentences.";
+  if (config.length === "Short") lengthInstruction = "Keep descriptions extremely brief. 1-2 punchy sentences maximum.";
+  if (config.length === "Medium") lengthInstruction = "Provide a balanced description. 3-4 sentences.";
+  if (config.length === "Long") lengthInstruction = "Provide a rich, detailed description. 5-7 sentences allowing for deep immersion.";
+
+  return `You are a professional RPG game master. 
+${styleInstruction}
+${lengthInstruction}
 
 CRITICAL VISUAL RULE:
 Your 'imagePrompt' must be a LITERAL, detailed description of the scene's current visual state. 
 Focus on: Physical objects present, specific lighting conditions, the player's immediate surroundings, and the mood. 
 Do not use abstract concepts. If the player used an item (e.g. a torch), the image prompt MUST include that item.`;
+};
 
-export async function generateInitialScene(theme: string): Promise<Scene> {
+export async function generateInitialScene(theme: string, config: StoryConfig): Promise<Scene> {
   const ai = getAI();
-  const prompt = `Start a gritty chronicle based on the theme: "${theme}". 
+  const prompt = `Start a ${config.style.toLowerCase()} chronicle based on the theme: "${theme}". 
   Provide the first scene. Ensure the imagePrompt is a hyper-literal description of the setting.`;
 
   const response = await ai.models.generateContent({
     model: STORY_MODEL,
     contents: prompt,
     config: {
-      systemInstruction: STORY_SYSTEM_INSTRUCTION,
+      systemInstruction: getSystemInstruction(config),
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -75,7 +88,7 @@ export async function generateInitialScene(theme: string): Promise<Scene> {
   return { ...data, id: crypto.randomUUID() };
 }
 
-export async function generateNextScene(history: Scene[], input: Choice | string, character: CharacterState): Promise<Scene> {
+export async function generateNextScene(history: Scene[], input: Choice | string, character: CharacterState, config: StoryConfig): Promise<Scene> {
   const ai = getAI();
   const actionText = typeof input === 'string' ? input : input.action;
   const contextHistory = history.slice(-3).map(s => `Scene: ${s.title}\nDesc: ${s.description}`).join('\n\n');
@@ -94,7 +107,7 @@ export async function generateNextScene(history: Scene[], input: Choice | string
     model: STORY_MODEL,
     contents: prompt,
     config: {
-      systemInstruction: STORY_SYSTEM_INSTRUCTION,
+      systemInstruction: getSystemInstruction(config),
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

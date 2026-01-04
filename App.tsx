@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GameState, Scene, Choice, CharacterState } from './types';
+import { GameState, Scene, Choice, CharacterState, StoryConfig, StoryStyle, StoryLength } from './types';
 import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio } from './services/geminiService';
 import { Sidebar } from './components/Sidebar';
 import { StoryDisplay } from './components/StoryDisplay';
@@ -15,6 +15,11 @@ const INITIAL_CHARACTER: CharacterState = {
   experience: 0,
   inventory: [],
   statusEffects: []
+};
+
+const INITIAL_STORY_CONFIG: StoryConfig = {
+  style: "Standard",
+  length: "Short"
 };
 
 const STORAGE_KEY = 'aetheria_game_v1';
@@ -39,6 +44,7 @@ const App: React.FC = () => {
     error: null,
     theme: '',
     character: INITIAL_CHARACTER,
+    storyConfig: INITIAL_STORY_CONFIG,
     autoDictate: true,
     autoListen: false,
     isSpeaking: false,
@@ -215,7 +221,7 @@ const App: React.FC = () => {
     stopSpeaking();
     setState(prev => ({ ...prev, isGenerating: true, error: null, theme, character: INITIAL_CHARACTER, history: [], customAction: '', startTheme: theme }));
     try {
-      const scene = await generateInitialScene(theme);
+      const scene = await generateInitialScene(theme, state.storyConfig);
       const imageUrl = await generateSceneImage(scene.imagePrompt);
       setState(p => ({ ...p, currentScene: { ...scene, imageUrl }, isGenerating: false }));
       if (scene.statChanges) updateCharacter(scene.statChanges);
@@ -251,7 +257,7 @@ const App: React.FC = () => {
     }));
 
     try {
-      const nextScene = await generateNextScene([...state.history, previousScene], input, nextCharacter);
+      const nextScene = await generateNextScene([...state.history, previousScene], input, nextCharacter, state.storyConfig);
       const imageUrl = await generateSceneImage(nextScene.imagePrompt);
       setState(p => ({ ...p, currentScene: { ...nextScene, imageUrl }, isGenerating: false }));
       if (nextScene.statChanges) updateCharacter(nextScene.statChanges);
@@ -281,6 +287,8 @@ const App: React.FC = () => {
           setSelectedVoice={(val) => setState(p => ({ ...p, selectedVoice: val }))}
           speechSpeed={state.speechSpeed}
           setSpeechSpeed={(val) => setState(p => ({ ...p, speechSpeed: val }))}
+          storyConfig={state.storyConfig}
+          setStoryConfig={(val) => setState(p => ({ ...p, storyConfig: val }))}
           onPreviewVoice={() => speakText("I await your command.")}
           isSpeaking={state.isSpeaking}
           hasApiKey={state.hasApiKey}
