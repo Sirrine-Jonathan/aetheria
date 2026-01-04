@@ -196,6 +196,40 @@ const App: React.FC = () => {
 
   const startListening = async (isStartScreen: boolean = false) => {
     if (state.isListening) return;
+
+    const startLocalListening = () => {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setState(p => ({ ...p, isListening: false, isGenerating: false, error: "Voice module offline." }));
+        return;
+      }
+      
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => setState(p => ({ ...p, isListening: true, error: null }));
+      recognition.onend = () => setState(p => ({ ...p, isListening: false }));
+      recognition.onerror = () => setState(p => ({ ...p, isListening: false, error: "Local sensor error." }));
+      
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (isStartScreen) {
+          setState(p => ({ ...p, startTheme: transcript }));
+        } else {
+          setState(p => ({ ...p, customAction: transcript }));
+        }
+      };
+      
+      recognition.start();
+    };
+
+    if (!state.hasApiKey) {
+      startLocalListening();
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -205,19 +239,25 @@ const App: React.FC = () => {
       mediaRecorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const pcmData = await blobToPCM(audioBlob);
-        setState(p => ({ ...p, isListening: false, isGenerating: true }));
         
-        try {
-          const result = await transcribeAudio(pcmData);
-          if (isStartScreen) {
-            setState(p => ({ ...p, isGenerating: false, startTheme: result }));
-          } else {
-            setState(p => ({ ...p, isGenerating: false, customAction: result }));
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64data = (reader.result as string).split(',')[1];
+          setState(p => ({ ...p, isListening: false, isGenerating: true }));
+          
+          try {
+            const result = await transcribeAudio(base64data);
+            if (isStartScreen) {
+              setState(p => ({ ...p, isGenerating: false, startTheme: result }));
+            } else {
+              setState(p => ({ ...p, isGenerating: false, customAction: result }));
+            }
+          } catch (err) {
+            setState(p => ({ ...p, isGenerating: false, error: "Transmission interrupted." }));
           }
-        } catch (err) {
-          setState(p => ({ ...p, isGenerating: false, error: "Reception failed." }));
-        }
+        };
+        reader.readAsDataURL(audioBlob);
+        
         stream.getTracks().forEach(t => t.stop());
       };
 
@@ -227,7 +267,8 @@ const App: React.FC = () => {
         if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop(); 
       }, 5000);
     } catch (err) { 
-      console.error("Mic access error:", err); 
+      console.warn("Mic access error, switching to local:", err); 
+      startLocalListening();
     }
   };
 

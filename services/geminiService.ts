@@ -7,10 +7,10 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-const STORY_MODEL = 'gemini-3-flash-preview';
-const PRO_IMAGE_MODEL = 'gemini-3-pro-image-preview';
-const FLASH_IMAGE_MODEL = 'gemini-2.5-flash-image';
-const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+const STORY_MODEL = 'gemini-1.5-flash';
+const PRO_IMAGE_MODEL = 'gemini-1.5-pro'; 
+const FLASH_IMAGE_MODEL = 'gemini-1.5-flash';
+const TTS_MODEL = 'gemini-1.5-flash'; // 1.5-flash supports speech generation
 
 const CHARACTER_SCHEMA = {
   type: Type.OBJECT,
@@ -190,14 +190,34 @@ export async function textToSpeech(text: string, voice: string = 'Charon', speed
 
 export async function transcribeAudio(audioBase64: string): Promise<string> {
   const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: STORY_MODEL,
-    contents: {
-      parts: [
-        { inlineData: { data: audioBase64, mimeType: 'audio/pcm;rate=16000' } },
-        { text: "Transcribe the spoken RPG action clearly. Concise text only." }
-      ]
+  try {
+    const response = await ai.models.generateContent({
+      model: STORY_MODEL,
+      contents: {
+        parts: [
+          { inlineData: { data: audioBase64, mimeType: 'audio/webm' } }, // Changed to audio/webm as that is what is recorded
+          { text: "Transcribe the spoken RPG action clearly. Concise text only." }
+        ]
+      }
+    });
+    return response.text?.trim() || '';
+  } catch (error) {
+    console.warn("Primary transcription model failed, trying fallback...", error);
+    // Fallback to Pro if Flash fails (though usually Flash is more robust for simple tasks, this handles quota/model specific issues)
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: {
+          parts: [
+            { inlineData: { data: audioBase64, mimeType: 'audio/webm' } },
+            { text: "Transcribe the spoken RPG action clearly. Concise text only." }
+          ]
+        }
+      });
+      return response.text?.trim() || '';
+    } catch (fallbackError) {
+       console.error("All API transcription attempts failed", fallbackError);
+       throw fallbackError;
     }
-  });
-  return response.text?.trim() || '';
+  }
 }
