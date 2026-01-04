@@ -37,6 +37,7 @@ const App: React.FC = () => {
     selectedVoice: string;
     speechSpeed: number;
     hasApiKey: boolean;
+    isVoiceLoading: boolean;
   }>({
     currentScene: null,
     history: [],
@@ -56,6 +57,7 @@ const App: React.FC = () => {
     selectedVoice: 'Charon',
     speechSpeed: 1.0,
     hasApiKey: false,
+    isVoiceLoading: false,
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -119,20 +121,52 @@ const App: React.FC = () => {
       } catch (e) {}
       sourceRef.current = null;
     }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setState(p => ({ ...p, isSpeaking: false }));
   };
 
   const speakText = async (text: string) => {
     stopSpeaking();
     
+    const fallbackSpeak = () => {
+      if (!('speechSynthesis' in window)) {
+        setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: false, error: "Voice unavailable. Try a different browser." }));
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = state.speechSpeed;
+      
+      utterance.onend = () => {
+        setState(p => ({ ...p, isSpeaking: false }));
+        if (state.autoListen) startListening(false);
+      };
+
+      utterance.onerror = () => {
+        setState(p => ({ ...p, isSpeaking: false, isVoiceLoading: false, error: "Voice playback failed. Check audio settings." }));
+      };
+
+      setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: true }));
+      window.speechSynthesis.speak(utterance);
+    };
+
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
     }
     const ctx = audioCtxRef.current;
     if (ctx.state === 'suspended') await ctx.resume();
     
-    setState(p => ({ ...p, isSpeaking: true }));
+    setState(p => ({ ...p, isVoiceLoading: true }));
+
     try {
+      // If no key is present, don't even try the API, go straight to fallback
+      if (!state.hasApiKey) {
+        fallbackSpeak();
+        return;
+      }
+
       const base64 = await textToSpeech(text, state.selectedVoice, state.speechSpeed);
       if (base64) {
         const audioBuffer = await decodeAudioData(decode(base64), ctx, 24000, 1);
@@ -148,13 +182,15 @@ const App: React.FC = () => {
             if (state.autoListen) startListening(false);
           }
         };
+        
+        setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: true }));
         source.start();
       } else {
-        setState(p => ({ ...p, isSpeaking: false }));
+        fallbackSpeak();
       }
     } catch (err) {
-      console.error("Audio reliability error:", err);
-      setState(p => ({ ...p, isSpeaking: false }));
+      console.warn("Gemini TTS failed, switching to fallback:", err);
+      fallbackSpeak();
     }
   };
 
@@ -294,6 +330,7 @@ const App: React.FC = () => {
           hasApiKey={state.hasApiKey}
           onConnectKey={handleOpenKeySelector}
           error={state.error}
+          isVoiceLoading={state.isVoiceLoading}
         />
       ) : (
         <>

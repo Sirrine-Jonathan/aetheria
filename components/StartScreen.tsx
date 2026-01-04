@@ -20,6 +20,7 @@ interface StartScreenProps {
   hasApiKey: boolean;
   onConnectKey: () => void;
   error?: string | null;
+  isVoiceLoading?: boolean;
 }
 
 const PRESETS = [
@@ -49,7 +50,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   onStart, isLoading, isListening, onMicClick, startTheme, setStartTheme, 
   selectedVoice, setSelectedVoice, speechSpeed, setSpeechSpeed, 
   storyConfig, setStoryConfig,
-  onPreviewVoice, isSpeaking, hasApiKey, onConnectKey, error
+  onPreviewVoice, isSpeaking, hasApiKey, onConnectKey, error, isVoiceLoading
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,11 +208,15 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Select Your Guardian Voice</h3>
               <button 
                 onClick={onPreviewVoice}
-                disabled={isSpeaking}
+                disabled={isSpeaking || isVoiceLoading}
                 className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 hover:text-white transition-all hover:bg-white/10 active:scale-95 disabled:opacity-30"
               >
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                Preview Voice
+                {isVoiceLoading ? (
+                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                )}
+                {isVoiceLoading ? 'Loading...' : 'Preview Voice'}
               </button>
             </div>
             
