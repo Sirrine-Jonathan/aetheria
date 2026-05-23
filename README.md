@@ -12,9 +12,14 @@ View your app in AI Studio: https://ai.studio/apps/drive/1eT6nScrIy0T1YB8I7jP4Rp
 
 **Prerequisites:**  Node.js
 
-
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set the `GROQ_API_KEY` in your Netlify environment variables or a local `.env` file (for use with `netlify dev`).
 3. Run the app:
    `npm run dev`
+
+## Deployment
+
+This app is configured for Netlify. 
+- The `netlify.toml` handles the build settings and function directory.
+- Make sure to set `GROQ_API_KEY` in your Netlify dashboard.

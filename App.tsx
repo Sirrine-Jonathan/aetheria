@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GameState, Scene, Choice, CharacterState, StoryConfig, StoryStyle, StoryLength } from './types';
-import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio } from './services/geminiService';
+import { generateInitialScene, generateNextScene, generateSceneImage, textToSpeech, transcribeAudio, setApiKey } from './services/storyService';
 import { Sidebar } from './components/Sidebar';
 import { StoryDisplay } from './components/StoryDisplay';
 import { StartScreen } from './components/StartScreen';
@@ -23,6 +23,7 @@ const INITIAL_STORY_CONFIG: StoryConfig = {
 };
 
 const STORAGE_KEY = 'aetheria_game_v1';
+const API_KEY_STORAGE = 'aetheria_api_key';
 
 const App: React.FC = () => {
   const [state, setState] = useState<GameState & { 
@@ -38,6 +39,7 @@ const App: React.FC = () => {
     speechSpeed: number;
     hasApiKey: boolean;
     isVoiceLoading: boolean;
+    voiceError: boolean;
   }>({
     currentScene: null,
     history: [],
@@ -56,8 +58,9 @@ const App: React.FC = () => {
     startTheme: '',
     selectedVoice: 'Charon',
     speechSpeed: 1.0,
-    hasApiKey: false,
+    hasApiKey: true,
     isVoiceLoading: false,
+    voiceError: false,
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -66,27 +69,11 @@ const App: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
-    const checkApiKey = async () => {
-      // @ts-ignore
-      if (window.aistudio?.hasSelectedApiKey) {
-        try {
-          // @ts-ignore
-          const hasKey = await window.aistudio.hasSelectedApiKey();
-          setState(p => ({ ...p, hasApiKey: hasKey }));
-        } catch (e) {
-          console.warn("Key check failed", e);
-        }
-      } else if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
-        setState(p => ({ ...p, hasApiKey: true }));
-      }
-    };
-    checkApiKey();
-
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setState(p => ({ ...p, ...parsed, isGenerating: false, isSpeaking: false, isListening: false }));
+        setState(p => ({ ...p, ...parsed, isGenerating: false, isSpeaking: false, isListening: false, hasApiKey: true }));
       } catch (e) { 
         console.error("Failed to load save", e); 
       }
@@ -100,16 +87,11 @@ const App: React.FC = () => {
     }
   }, [state.currentScene, state.history, state.character]);
 
-  const handleOpenKeySelector = async () => {
-    // @ts-ignore
-    if (window.aistudio?.openSelectKey) {
-      try {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        setState(p => ({ ...p, hasApiKey: true, error: null }));
-      } catch (e) {
-        setState(p => ({ ...p, error: "Failed to connect reality." }));
-      }
+  const handleSetApiKey = (key: string) => {
+    if (key.trim()) {
+      localStorage.setItem(API_KEY_STORAGE, key.trim());
+      setApiKey(key.trim());
+      setState(p => ({ ...p, hasApiKey: true, error: null }));
     }
   };
 
@@ -130,68 +112,64 @@ const App: React.FC = () => {
   const speakText = async (text: string) => {
     stopSpeaking();
     
-    const fallbackSpeak = () => {
-      if (!('speechSynthesis' in window)) {
-        setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: false, error: "Voice unavailable. Try a different browser." }));
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = state.speechSpeed;
-      
-      utterance.onend = () => {
-        setState(p => ({ ...p, isSpeaking: false }));
-        if (state.autoListen) startListening(false);
-      };
-
-      utterance.onerror = () => {
-        setState(p => ({ ...p, isSpeaking: false, isVoiceLoading: false, error: "Voice playback failed. Check audio settings." }));
-      };
-
-      setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: true }));
-      window.speechSynthesis.speak(utterance);
-    };
-
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    if (!('speechSynthesis' in window)) {
+      setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: false, error: "Voice unavailable. Try a different browser." }));
+      return;
     }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === 'suspended') await ctx.resume();
-    
+
     setState(p => ({ ...p, isVoiceLoading: true }));
 
-    try {
-      // If no key is present, don't even try the API, go straight to fallback
-      if (!state.hasApiKey) {
-        fallbackSpeak();
-        return;
+    // Small delay to allow synthesis engine to initialize if needed
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = state.speechSpeed;
+    
+    // Voice mapping for native voices
+    const voices = window.speechSynthesis.getVoices();
+    let selectedNativeVoice = null;
+
+    if (voices.length > 0) {
+      // Try to find high-quality English voices based on the selected "character"
+      const findVoice = (keywords: string[]) => voices.find(v => v.lang.startsWith('en') && keywords.some(k => v.name.toLowerCase().includes(k.toLowerCase())));
+      
+      switch (state.selectedVoice) {
+        case 'Charon': // Deep/Authoritative (UK Male often fits)
+          selectedNativeVoice = findVoice(['daniel', 'uk english male', 'google uk english male']) || voices.find(v => v.lang === 'en-GB');
+          break;
+        case 'Puck': // Light/Playful
+          selectedNativeVoice = findVoice(['karen', 'victoria', 'google us english']) || voices.find(v => v.lang === 'en-US');
+          break;
+        case 'Kore': // Soft/Melodic
+          selectedNativeVoice = findVoice(['tessa', 'moira', 'fiona', 'ireland']) || voices.find(v => v.lang.startsWith('en'));
+          break;
+        case 'Fenrir': // Rugged/Intense
+          selectedNativeVoice = findVoice(['alex', 'fred', 'scottish']) || voices.find(v => v.lang === 'en-US');
+          break;
+        case 'Zephyr': // Smooth/Ethereal
+          selectedNativeVoice = findVoice(['samantha', 'serena']) || voices.find(v => v.lang.startsWith('en'));
+          break;
+        default:
+          selectedNativeVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB');
       }
 
-      const base64 = await textToSpeech(text, state.selectedVoice, state.speechSpeed);
-      if (base64) {
-        const audioBuffer = await decodeAudioData(decode(base64), ctx, 24000, 1);
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(ctx.destination);
-        source.playbackRate.value = state.speechSpeed;
-        
-        sourceRef.current = source;
-        source.onended = () => {
-          if (sourceRef.current === source) {
-            setState(p => ({ ...p, isSpeaking: false }));
-            if (state.autoListen) startListening(false);
-          }
-        };
-        
-        setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: true }));
-        source.start();
-      } else {
-        fallbackSpeak();
+      if (selectedNativeVoice) {
+        utterance.voice = selectedNativeVoice;
       }
-    } catch (err) {
-      console.warn("Gemini TTS failed, switching to fallback:", err);
-      fallbackSpeak();
     }
+    
+    utterance.onend = () => {
+      setState(p => ({ ...p, isSpeaking: false }));
+      if (state.autoListen) startListening(false);
+    };
+
+    utterance.onerror = (e) => {
+      console.warn("Speech synthesis error", e);
+      setState(p => ({ ...p, isSpeaking: false, isVoiceLoading: false, error: "Voice playback failed. Check audio settings." }));
+    };
+
+    setState(p => ({ ...p, isVoiceLoading: false, isSpeaking: true, voiceError: false }));
+    window.speechSynthesis.speak(utterance);
   };
 
   const startListening = async (isStartScreen: boolean = false) => {
@@ -369,9 +347,10 @@ const App: React.FC = () => {
           onPreviewVoice={() => speakText("I await your command.")}
           isSpeaking={state.isSpeaking}
           hasApiKey={state.hasApiKey}
-          onConnectKey={handleOpenKeySelector}
+          onSetApiKey={handleSetApiKey}
           error={state.error}
           isVoiceLoading={state.isVoiceLoading}
+          voiceError={state.voiceError}
         />
       ) : (
         <>

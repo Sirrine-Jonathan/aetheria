@@ -1,118 +1,231 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+
 import { StoryConfig, StoryStyle, StoryLength } from '../types';
 
-interface StartScreenProps {
-  onStart: (theme: string) => void;
-  isLoading: boolean;
-  isListening: boolean;
-  onMicClick: () => void;
-  startTheme: string;
-  setStartTheme: (val: string) => void;
-  selectedVoice: string;
-  setSelectedVoice: (val: string) => void;
-  speechSpeed: number;
-  setSpeechSpeed: (val: number) => void;
-  storyConfig: StoryConfig;
-  setStoryConfig: (val: StoryConfig) => void;
-  onPreviewVoice: () => void;
-  isSpeaking: boolean;
-  hasApiKey: boolean;
-  onConnectKey: () => void;
-  error?: string | null;
-  isVoiceLoading?: boolean;
-}
 
-const PRESETS = [
+
+interface StartScreenProps {
+
+  onStart: (theme: string) => void;
+
+  isLoading: boolean;
+
+  isListening: boolean;
+
+  onMicClick: () => void;
+
+  startTheme: string;
+
+  setStartTheme: (val: string) => void;
+
+  selectedVoice: string;
+
+  setSelectedVoice: (val: string) => void;
+
+  speechSpeed: number;
+
+  setSpeechSpeed: (val: number) => void;
+
+  storyConfig: StoryConfig;
+
+  setStoryConfig: (val: StoryConfig) => void;
+
+  onPreviewVoice: () => void;
+
+  isSpeaking: boolean;
+
+  hasApiKey: boolean;
+
+    onSetApiKey: (key: string) => void;
+
+    error?: string | null;
+
+    isVoiceLoading?: boolean;
+
+    voiceError?: boolean;
+
+  }
+
+  
+
+  const PRESETS = [
+
   "A cyberpunk detective in a neon-soaked rain city",
+
   "A lost explorer in an ancient sunken civilization",
+
   "A rogue wizard in a floating academy of magic",
+
   "A space scavenger on a derelict gothic freighter",
+
   "A mystical samurai in a forest of shifting seasons"
+
 ];
+
+
 
 const VOICE_OPTIONS = [
+
   { name: 'Charon', desc: 'Deep & Authoritative', color: 'border-blue-500/30' },
+
   { name: 'Puck', desc: 'Light & Playful', color: 'border-green-500/30' },
+
   { name: 'Kore', desc: 'Soft & Melodic', color: 'border-pink-500/30' },
+
   { name: 'Fenrir', desc: 'Rugged & Intense', color: 'border-orange-500/30' },
+
   { name: 'Zephyr', desc: 'Smooth & Ethereal', color: 'border-cyan-500/30' }
+
 ];
+
+
 
 const STYLES: StoryStyle[] = ["Standard", "Noir", "Fantasy", "Sci-Fi", "Horror", "Comedic", "Dramatic"];
+
 const LENGTHS: { label: StoryLength, desc: string }[] = [
+
   { label: "Short", desc: "Brief & Punchy" },
+
   { label: "Medium", desc: "Balanced Detail" },
+
   { label: "Long", desc: "Rich & Immersive" }
+
 ];
 
+
+
 export const StartScreen: React.FC<StartScreenProps> = ({ 
+
+
+
   onStart, isLoading, isListening, onMicClick, startTheme, setStartTheme, 
+
+
+
   selectedVoice, setSelectedVoice, speechSpeed, setSpeechSpeed, 
+
+
+
   storyConfig, setStoryConfig,
-  onPreviewVoice, isSpeaking, hasApiKey, onConnectKey, error, isVoiceLoading
+
+
+
+  onPreviewVoice, isSpeaking, hasApiKey, onSetApiKey, error, isVoiceLoading, voiceError
+
+
+
 }) => {
+
+
+
+  const [apiKeyInput, setApiKeyInput] = useState('');
+
+
+
   const handleSubmit = (e: React.FormEvent) => {
+
     e.preventDefault();
+
     if (startTheme.trim()) onStart(startTheme);
+
   };
 
+
+
+  const handleKeySubmit = (e: React.FormEvent) => {
+
+    e.preventDefault();
+
+    if (apiKeyInput.trim()) onSetApiKey(apiKeyInput);
+
+  };
+
+
+
   return (
+
     <div className="flex flex-col items-center w-full min-h-screen bg-[#050505] text-center overflow-y-auto pt-0 pb-20">
+
       
+
       {/* Cinematic Hero */}
+
       <header className="relative w-full h-[45vh] md:h-[55vh] flex-shrink-0 overflow-hidden group">
+
         <img 
+
           src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" 
+
           alt="Aetheria Weaver" 
+
           className="w-full h-full object-cover transition-transform duration-[40s] group-hover:scale-110 opacity-70"
+
         />
+
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+
         
+
         <div className="absolute bottom-12 left-0 w-full flex flex-col items-center space-y-4 px-6">
+
           <h1 className="serif text-6xl md:text-9xl font-bold bg-gradient-to-br from-white via-purple-100 to-indigo-300 bg-clip-text text-transparent tracking-tighter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
+
             Aetheria
+
           </h1>
+
           <p className="text-gray-400 uppercase tracking-[0.5em] text-[10px] md:text-xs font-black opacity-60">
+
             Infinite AI-Driven Chronicles
+
           </p>
+
         </div>
+
       </header>
 
+
+
       <div className="max-w-4xl w-full px-6 py-12 md:py-20 fade-in space-y-12">
+
         
-        {/* API Key / Setup Info */}
+
+        {/* API Key / Setup Info (Optional) */}
         {!hasApiKey && (
           <div className="p-8 bg-purple-500/10 border border-purple-500/20 rounded-[2.5rem] text-left space-y-4 max-w-2xl mx-auto backdrop-blur-xl">
             <h3 className="text-white font-black uppercase tracking-widest text-xs flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-              Reality Weaver Connection Required
+              Reality Weaver Connection
             </h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              To weave these high-fidelity chronicles and illustrate your journey with <strong>Pro-grade imagery</strong>, please connect a Google Account. You must select a API key from a project with <strong>active billing</strong> to avoid quota limits.
+              Using the global story engine. You can provide your own Groq API Key if you prefer.
             </p>
-            <div className="flex flex-wrap gap-4 pt-2">
+            <form onSubmit={handleKeySubmit} className="flex flex-col md:flex-row gap-4 pt-2">
+              <input 
+                type="password"
+                placeholder="Paste Groq API Key here..."
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="flex-1 bg-black/50 border border-white/10 rounded-full px-6 py-3 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-purple-500 transition-all"
+              />
               <button 
-                onClick={onConnectKey}
-                className="flex items-center gap-3 px-6 py-3 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-purple-100 transition-all active:scale-95 shadow-xl"
+                type="submit"
+                disabled={!apiKeyInput.trim()}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-purple-100 transition-all active:scale-95 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.92 3.32-2.12 4.52-1.2 1.2-3.04 2.16-5.72 2.16-4.6 0-8.36-3.72-8.36-8.32s3.76-8.32 8.36-8.32c2.48 0 4.28.96 5.64 2.24l2.32-2.32C18.44 2.08 15.68 1 12.48 1 6.12 1 1 6.12 1 12.48S6.12 24 12.48 24c3.44 0 6.08-1.12 8.12-3.24 2.08-2.08 2.72-5.04 2.72-7.36 0-.72-.04-1.4-.16-2.08H12.48z"/></svg>
-                Connect Google Account
+                Connect Key
               </button>
-              <a 
-                href="https://ai.google.dev/gemini-api/docs/billing" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-3 border border-white/10 text-gray-400 rounded-full font-bold text-[10px] uppercase tracking-widest hover:text-white transition-all"
-              >
-                Billing Documentation
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-              </a>
-            </div>
+            </form>
           </div>
         )}
 
+
+
+
         {error && (
+
+
           <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-3xl text-red-400 text-sm font-medium leading-relaxed max-w-xl mx-auto shadow-2xl">
             <div className="flex items-center justify-center gap-3 mb-1">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
@@ -146,7 +259,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
             
             <button
               type="submit"
-              disabled={isLoading || isListening || !startTheme.trim()}
+              disabled={isLoading || isListening || !startTheme.trim() || !hasApiKey}
               className="w-full px-12 py-6 rounded-3xl font-black text-xl uppercase tracking-[0.2em] shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4 group/btn bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/40 disabled:opacity-50 disabled:bg-gray-800 disabled:shadow-none"
             >
               {isLoading ? (
@@ -205,7 +318,10 @@ export const StartScreen: React.FC<StartScreenProps> = ({
 
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Select Your Guardian Voice</h3>
+              <h3 className="text-[10px] text-gray-500 uppercase font-black tracking-widest flex items-center gap-2">
+                Select Your Guardian Voice
+                {voiceError && <span className="text-orange-400 flex items-center gap-1 normal-case tracking-normal font-medium bg-orange-500/10 px-2 py-0.5 rounded text-[9px]"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>High Fidelity Unavailable</span>}
+              </h3>
               <button 
                 onClick={onPreviewVoice}
                 disabled={isSpeaking || isVoiceLoading}
@@ -220,7 +336,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               </button>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className={`grid grid-cols-2 md:grid-cols-5 gap-4 ${voiceError ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
               {VOICE_OPTIONS.map((voice) => (
                 <button
                   key={voice.name}
@@ -273,7 +389,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                   setStartTheme(preset);
                   onStart(preset);
                 }}
-                disabled={isLoading || isListening}
+                disabled={isLoading || isListening || !hasApiKey}
                 className="group relative p-8 text-left rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-purple-500/30 transition-all text-sm text-gray-500 hover:text-white overflow-hidden shadow-lg active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <div className="absolute top-0 left-0 w-1.5 h-0 bg-purple-500 group-hover:h-full transition-all duration-300" />

@@ -4,7 +4,6 @@ const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap'
 ];
 

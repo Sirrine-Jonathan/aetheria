@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Netlify folder
+.netlify
+\n# Playwright
+playwright-report/
+test-results/
+\n# Environment Variables
+.env
